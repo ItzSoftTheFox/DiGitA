@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Local workspace window and native directory selection",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:allow-open"]
+}

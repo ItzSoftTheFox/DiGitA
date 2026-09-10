@@ -1,0 +1,25 @@
+# Dependencies and build output
+node_modules/
+dist/
+target/
+*.tsbuildinfo
+src-tauri/gen/
+
+# Test reports and generated screenshots
+test-results/
+playwright-report/
+artifacts/
+coverage/
+
+# Local configuration and development files
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.log
+.DS_Store
+.agents/
+.codex/
+
+# Private project planning document
+/devroom-project.md
