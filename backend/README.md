@@ -1,8 +1,7 @@
-# DiGitA API — Phase 2
+# DiGitA API — Phases 2 and 3
 
-FastAPI service for accounts, teams, membership roles, rooms and invitation codes.
-The desktop currently remains a local Git client; account screens and server
-connections will follow with Phase 3.
+FastAPI service for accounts, teams, membership roles, rooms, invitation codes,
+and live Git presence. The desktop now connects through HTTP and WebSocket.
 
 ## Run locally
 
@@ -15,7 +14,7 @@ cd backend
 uv sync --locked
 cp .env.example .env
 uv run alembic upgrade head
-uv run uvicorn digita_api.main:create_app --factory --host 127.0.0.1 --port 8000 --no-proxy-headers
+uv run uvicorn digita_api.main:create_app --factory --host 127.0.0.1 --port 8000 --no-proxy-headers --ws-max-size 65536
 ```
 
 Open [interactive API documentation](http://127.0.0.1:8000/docs).
@@ -90,9 +89,43 @@ scheduled cleanup of expired sessions/invitations are not part of this phase.
 Expired tokens cannot authenticate; expired sessions for a user are removed at
 their next successful login.
 
-The API accepts no repository paths, source files, diffs or Git presence yet.
-Browser cross-origin access is disabled by default. Desktop token storage and
-network permissions will be handled when the client connects in Phase 3.
+The API accepts permitted Git metadata, never source files, diffs, or absolute
+repository paths. CORS and WebSocket origins are limited to the local Vite and
+Tauri origins by default. Override `DIGITA_ALLOWED_ORIGINS` with a JSON array for
+other trusted frontend origins. The desktop's API URL is configured at build time
+with `VITE_API_URL`; update the exact HTTP/WebSocket origins in Tauri's `connect-src`
+CSP when deploying elsewhere. Non-loopback APIs require HTTPS/WSS.
+
+## Live rooms
+
+Connect to `/rooms/{room_id}/live` and send `{"type":"auth","token":"..."}` as
+the first frame within five seconds. Tokens must not be put in URLs. The server
+authenticates the session and room membership before sending any room state.
+
+Send `{"type":"presence.update","presence":null}` to stop Git sharing, or a
+presence object with `repository_id` equal to the room ID, `changed_count`, an
+optional `commit_hash`, and independent `sharing` flags for `branch`, `files`, and
+`commit_message`. Hidden fields are removed server-side even if a client includes
+them. The client confirms its working copy belongs to the room; no Git remote
+URL or local folder name is used as a shared identity.
+
+The server sends `room.state` snapshots with online members and the most recent
+100 generic timeline events. New connections receive the complete current state.
+The client resends its current permitted presence after reconnecting. A `ping`
+message every 15 seconds receives `pong`; unresponsive clients are disconnected
+after roughly 40–50 seconds. Expired sessions and removed members are checked on
+incoming messages, before broadcasts, and during idle connection checks.
+
+Limits: one backend process, 32 online users per room, one active connection per
+user in each room, 1000 active rooms, eight inbound messages per second, and 64 KiB
+inbound messages. Reopening the same room for the same account replaces the older
+connection. Presence and timeline are ephemeral: after the last member leaves or
+the process restarts, they are discarded. A new persistent timeline and shared
+connection state would be needed before multiple server workers can be used.
+
+Timeline events intentionally omit file names, branch names and commit messages.
+The current `git.commit_created` event means the observed commit hash changed;
+the UI describes this as a changed last commit because a checkout can cause it too.
 
 ## Tests and migrations
 

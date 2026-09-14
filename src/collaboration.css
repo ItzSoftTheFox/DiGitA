@@ -269,6 +269,23 @@
   padding: 22px;
   border: 1px solid #292929;
 }
+.room-columns h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.collaboration-shell .text-button,
+.login-page .text-button {
+  width: auto;
+  margin: 0;
+  display: inline-flex;
+}
+.collaboration-shell .button:not(.primary),
+.login-page .button:not(.primary),
+.local-nav .button {
+  background: #181818;
+  border: 1px solid #3b3b3b;
+}
 .member-card {
   border-top: 1px solid #292929;
   padding: 16px 0;

@@ -161,7 +161,11 @@ export function useRoom(
     function online() {
       if (terminal || !active) return;
       clearTimeout(retry);
-      if (!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED) connect();
+      if (
+        !socketRef.current ||
+        socketRef.current.readyState === WebSocket.CLOSED
+      )
+        connect();
     }
     window.addEventListener("offline", offline);
     window.addEventListener("online", online);

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from time import monotonic
 from typing import Literal
 
+from anyio import CancelScope
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
@@ -167,8 +168,9 @@ def router(hub: Hub, allowed_origins: list[str]) -> APIRouter:
                     if monotonic() - last_seen > 40:
                         await socket.close(code=4408)
                         break
-                    async with room.lock:
-                        await hub.broadcast(room_id, room)
+                    if not await asyncio.to_thread(hub.identity, room_id, token_hash):
+                        await socket.close(code=4403)
+                        break
                     continue
                 last_seen = monotonic()
                 while messages and messages[0] < last_seen - 1:
@@ -238,12 +240,15 @@ def router(hub: Hub, allowed_origins: list[str]) -> APIRouter:
             await socket.close(code=1008)
         finally:
             if room and peer:
-                async with room.lock:
-                    if room.peers.get(peer.user_id) is peer:
-                        room.peers.pop(peer.user_id)
-                        hub.event(room, peer, "presence.left")
-                        await hub.broadcast(room_id, room)
-                    if not room.peers and hub.rooms.get(room_id) is room:
-                        hub.rooms.pop(room_id, None)
+                # ASGI may cancel the handler as soon as the connection closes.
+                # Finish removing its presence and notifying peers before returning.
+                with CancelScope(shield=True):
+                    async with room.lock:
+                        if room.peers.get(peer.user_id) is peer:
+                            room.peers.pop(peer.user_id)
+                            hub.event(room, peer, "presence.left")
+                            await hub.broadcast(room_id, room)
+                        if not room.peers and hub.rooms.get(room_id) is room:
+                            hub.rooms.pop(room_id, None)
 
     return routes

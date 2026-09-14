@@ -69,7 +69,8 @@ test("two accounts create a room, share private-by-default Git presence and reco
     };
     native.__TAURI_INTERNALS__ = {
       invoke: async (command: string) => {
-        if (command === "read_repository") return structuredClone(native.gitSnapshot);
+        if (command === "read_repository")
+          return structuredClone(native.gitSnapshot);
         if (command === "plugin:dialog|open")
           return "/workspace/private-repository";
         if (["load_session", "clear_session", "save_session"].includes(command))

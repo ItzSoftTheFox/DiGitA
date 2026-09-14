@@ -8,16 +8,21 @@ The interface follows a minimal black-and-white design with sharp edges, fine li
 
 ## Project status
 
-**Phases 1 and 2 complete: local prototype and backend/accounts API.**
+**Phases 1–3 complete: local Git workspace, accounts, and live collaboration.**
 
-The frontend and Git integration are implemented. The frontend build, six component/hook tests, six Rust Git tests, and two browser tests have passed. The native application passes `cargo check`, builds, and displays its desktop interface on Arch Linux with Wayland. The user has confirmed native repository selection, branch and latest commit display, and automatic updates after a file change.
+The desktop includes registration/login, a dashboard of teams and rooms, invitations, online presence, optional Git metadata sharing, and a live timeline. The local Git workspace remains available without signing in. The native application passes `cargo check`, builds, and displays its interface on Arch Linux with Wayland.
 
-The separate FastAPI backend implements registration, login/logout, teams, membership roles, rooms, and single-use invitation codes with PostgreSQL and Alembic migrations. All 21 backend tests pass on both SQLite and PostgreSQL. The desktop does not connect to this service yet; client integration and live collaboration are next in Phase 3.
+FastAPI provides accounts, team permissions, single-use invitations, and authenticated WebSocket rooms. PostgreSQL stores account/team data; active presence and the last 100 room events live in server memory. Validation includes 12 frontend tests, 32 backend tests on SQLite and PostgreSQL, and three browser tests, including two simultaneous clients.
 
-The current application UI is in Czech. This README describes both the available prototype and the planned product; live team collaboration and ambient audio are not implemented yet.
+The current application UI is in Czech. Conflict Radar and ambient audio remain planned.
 
 ## Current features
 
+- Register and log in, optionally remembering the desktop session in the OS credential store.
+- Create teams and rooms, invite colleagues, and switch rooms from the main dashboard.
+- See online room members, their permitted Git metadata, and a live activity timeline.
+- Enable sharing explicitly, with independent controls for branch names, file names, and commit messages.
+- Reconnect after network interruptions and receive the room's current state.
 - Select a local Git repository through a native directory picker and disconnect it at any time.
 - View the current branch, latest commit, and changed files.
 - Distinguish staged and unstaged changes, search paths, and filter the file list.
@@ -28,24 +33,23 @@ The current application UI is in Czech. This README describes both the available
 
 ## Roadmap
 
-### Planned desktop navigation
+### Desktop navigation
 
-After login, the main dashboard will list the user's accessible rooms grouped by
+After login, the main dashboard lists the user's accessible rooms grouped by
 team, with actions to create a room, create a team, accept an invitation, and enter
-a room. Room creation follows team permissions. An empty dashboard will offer
+a room. Room creation follows team permissions. An empty dashboard offers
 team creation or invitation acceptance.
 
-The current local Git overview will become part of the selected room's workspace,
+The local Git overview is part of the selected room's workspace,
 alongside members, activity, and later Conflict Radar and ambient audio. Users can
 return to the dashboard to switch rooms. In this UX, a "server" means a team space;
-selecting multiple backend hosts is a separate future feature. These screens are
-planned for Phase 3 and are not implemented yet.
+selecting multiple backend hosts is a separate future feature.
 
 | Phase | Focus                | Planned outcome                                                                                        | Status      |
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------ | ----------- |
 | 1     | Local prototype      | Desktop window, repository selection, Git overview, automatic refresh, and native validation           | Complete    |
 | 2     | Backend and accounts | FastAPI service, database schema, registration, authentication, teams, and rooms                       | Complete    |
-| 3     | Live collaboration   | WebSocket connection, online presence, shared Git metadata, and a project event timeline               | Planned     |
+| 3     | Live collaboration   | WebSocket connection, online presence, shared Git metadata, and a project event timeline               | Complete    |
 | 4     | Conflict Radar       | Detect overlapping file changes, update warnings, add notifications, and suppress duplicate alerts     | Planned     |
 | 5     | Ambient rooms        | One licensed audio track, synchronized playback, individual volume, and reconnect recovery             | Planned     |
 | 6     | Release readiness    | Broader automated testing, Docker Compose, CI, installers, documentation, and the first public release | Planned     |
@@ -67,9 +71,9 @@ Conflict Radar will indicate potential overlap; it will not guarantee that Git w
 | Git integration    | Git CLI through a standalone Rust crate | Implemented; six Rust tests passed       |
 | Frontend testing   | Vitest and Testing Library              | Implemented                              |
 | Browser testing    | Playwright and Chromium                 | Implemented                              |
-| Backend            | Python and FastAPI                      | Implemented; 21 tests passed on each database |
+| Backend            | Python and FastAPI                      | Implemented; 32 tests passed on each database |
 | Database           | PostgreSQL and Alembic                  | Implemented; migrations verified          |
-| Realtime transport | WebSocket                               | Planned                                  |
+| Realtime transport | WebSocket                               | Implemented; authenticated room connections |
 | Local persistence  | SQLite                                  | Planned                                  |
 | Infrastructure     | Docker Compose and GitHub Actions       | Local PostgreSQL Compose implemented; CI planned |
 
@@ -97,7 +101,17 @@ npm ci
 npm run tauri dev
 ```
 
-Choose **Připojit repozitář** (Connect repository), then select an existing Git working copy. Selecting a subdirectory also works. Edit a file in your usual editor and the overview will refresh automatically.
+Start the backend below for collaboration, then register or log in. Create a team
+and room, enter it, and choose **Připojit repozitář** (Connect repository). Each
+member selects their own working copy and confirms it belongs to the room before
+enabling sharing. A room represents one logical project; remote URLs are not
+automatically matched. Change the sharing checkboxes to permit individual fields.
+
+For offline use, choose **Lokální režim** (Local mode) on the login screen.
+Selecting a repository subdirectory also works. Edit a file in your usual editor
+and the overview refreshes automatically. Changing rooms or repositories resets
+sharing consent. Linux session persistence requires an unlocked Secret Service
+keyring; leave **Zapamatovat přihlášení** unchecked to use an in-memory session.
 
 ### Browser preview
 
@@ -106,7 +120,10 @@ npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:1420` and choose **Prohlédnout ukázku** (View demo). The browser preview uses labeled static sample data. Access to a real local repository requires the desktop application.
+Open `http://127.0.0.1:1420`. Login and rooms use the running backend. For the
+static Git demo, choose **Lokální režim**, then **Prohlédnout ukázku** (View demo).
+Access to a real local repository requires the desktop application. The eventual
+public website will be a separate product page with download links.
 
 Stop the standalone preview server before running `npm run tauri dev`; both use port 1420.
 
@@ -120,7 +137,7 @@ cd backend
 uv sync --locked
 cp .env.example .env
 uv run alembic upgrade head
-uv run uvicorn digita_api.main:create_app --factory --host 127.0.0.1 --port 8000 --no-proxy-headers
+uv run uvicorn digita_api.main:create_app --factory --host 127.0.0.1 --port 8000 --no-proxy-headers --ws-max-size 65536
 ```
 
 Open `http://127.0.0.1:8000/docs` to register, log in, create a team and room, and
@@ -151,7 +168,12 @@ npm run test:e2e
 npm run format
 ```
 
-Browser tests exercise the demo, file filters, search, disconnection, responsive layouts, and reduced-motion support. They save screenshots to the ignored `artifacts/` directory.
+Run `uv sync --locked` in `backend/` before browser tests. Playwright starts an
+isolated API with a temporary SQLite database on port 8001 and a frontend on 1421.
+It tests the local demo and two accounts creating/joining a room, live metadata,
+privacy changes, a changed commit, disconnect, and network recovery. Only native
+Git reads and the picker are mocked in this browser scenario. Screenshots are in
+the ignored `artifacts/` directory.
 
 Rust dependency versions are recorded in `src-tauri/Cargo.lock` and `crates/git-presence/Cargo.lock` for reproducible application builds and Git tests.
 
@@ -159,14 +181,19 @@ Rust dependency versions are recorded in `src-tauri/Cargo.lock` and `crates/git-
 
 Verified on Arch Linux with Wayland and WebKitGTK 2.52.6:
 
-- `npm test`: six component/hook tests passed.
+- `npm test`: 12 frontend tests passed.
 - `npm run build`: TypeScript check and frontend build passed.
 - `cargo test --manifest-path crates/git-presence/Cargo.toml`: six Git tests passed.
 - `cargo check --manifest-path src-tauri/Cargo.toml`: passed.
-- `npm run test:e2e`: two Chromium browser tests passed.
+- `npm run test:e2e`: three Chromium browser tests passed.
+- Backend: 32 tests passed on SQLite and PostgreSQL.
 - `npm run tauri dev -- --no-watch`: native build and desktop window rendering passed.
 
-The user confirmed the native manual check with `/home/Fox/Projects/DiGitA`: directory selection, branch and latest commit display, and automatic refresh after a file change all worked. Native disconnection was not separately confirmed. Browser tests use demo data and do not validate the native picker or Tauri IPC.
+The user previously confirmed native repository selection, branch/commit display,
+and automatic refresh in Phase 1. The Phase 3 login window was visually checked
+in the native app. The two-client collaboration test uses real HTTP/WebSocket
+traffic with mocked native Git access; a full two-device native run and actual
+OS-keyring persistence still need manual release validation.
 
 ## Project structure
 
@@ -175,7 +202,7 @@ src/                    React interface and frontend tests
 src-tauri/              Tauri application, configuration, and icons
 crates/git-presence/    Git inspection library and Rust tests
 e2e/                    Playwright browser tests
-backend/digita_api/     FastAPI accounts, teams, rooms, and invitations
+backend/digita_api/     FastAPI accounts, teams, rooms, invitations, and WebSockets
 backend/migrations/     Alembic database migrations
 backend/tests/          API, authorization, concurrency, and migration tests
 compose.yaml            Local PostgreSQL development database
@@ -183,9 +210,16 @@ compose.yaml            Local PostgreSQL development database
 
 ## Privacy and scope
 
-The local prototype does not send repository data to a server, require an account, or perform write operations such as commit, push, merge, or rebase. Repository selection is not persisted between launches.
+Local mode requires no account and sends no repository data. Room mode announces
+online presence; Git sharing remains off until enabled. Repository selection is
+not persisted between launches. DiGitA does not perform Git write operations.
 
-Future collaboration features are intended to share only permitted metadata. Source code and diff contents must not be sent by default, and users must control whether branch names, file names, and commit messages are shared.
+When sharing is enabled, the client sends the room/project ID, changed-file count,
+commit hash, and only the optional metadata permitted by the user. It never sends
+source code, diffs, absolute local paths, or commit authors. Hidden fields are also
+removed on the server. The timeline contains generic event descriptions, without
+file names, branch names, or commit messages. Session tokens are kept in memory
+or the OS credential store; web storage contains only a remember-login flag.
 
 The MVP does not include a code editor, shared terminal, live collaborative editing, voice/video calls, automatic conflict resolution, or commercial music streaming.
 
@@ -195,5 +229,8 @@ The MVP does not include a code editor, shared terminal, live collaborative edit
 - Git changes are detected by polling. Large repositories can take longer to refresh, and Git processes currently have no timeout.
 - File names containing invalid UTF-8 are displayed with replacement characters.
 - Installer packaging is disabled during the prototype phase.
-- Accounts and rooms are available through the backend API. Desktop account screens, networking, Conflict Radar, and ambient playback remain on the roadmap.
+- Conflict Radar and ambient playback remain on the roadmap.
+- Run one backend worker: room state and timeline are in memory and disappear after the last member leaves or the server restarts. A room supports up to 32 online users, with one active connection per user.
+- Git file lists above 500 entries or the payload budget share counts only. Project identity is confirmed by the user, not inferred from Git remote addresses.
+- A changed HEAD is shown as a changed last commit; it does not prove a new commit was created rather than checked out.
 - The backend is configured for local development; public deployment and multi-worker hardening remain part of release readiness. See the backend README for current limits.
