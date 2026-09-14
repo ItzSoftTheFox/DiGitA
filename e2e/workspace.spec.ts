@@ -5,6 +5,7 @@ test("browser preview, filtering and layouts", async ({ page }) => {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
+  await page.getByRole("button", { name: "Lokální režim" }).click();
   await expect(
     page.getByRole("heading", { name: "Velké věci začínají lokálně." }),
   ).toBeVisible();
@@ -50,6 +51,7 @@ test("browser preview, filtering and layouts", async ({ page }) => {
 test("respects reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  await page.getByRole("button", { name: "Lokální režim" }).click();
   expect(
     await page
       .locator(".orbit-two")

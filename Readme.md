@@ -8,11 +8,13 @@ The interface follows a minimal black-and-white design with sharp edges, fine li
 
 ## Project status
 
-**Phase 1: local prototype — complete.**
+**Phases 1 and 2 complete: local prototype and backend/accounts API.**
 
-The frontend and Git integration are implemented. The frontend build, six component/hook tests, six Rust Git tests, and two browser tests have passed. The native application passes `cargo check`, builds, and displays its desktop interface on Arch Linux with Wayland. The user has confirmed native repository selection, branch and latest commit display, and automatic updates after a file change. Next is Phase 2: backend and accounts.
+The frontend and Git integration are implemented. The frontend build, six component/hook tests, six Rust Git tests, and two browser tests have passed. The native application passes `cargo check`, builds, and displays its desktop interface on Arch Linux with Wayland. The user has confirmed native repository selection, branch and latest commit display, and automatic updates after a file change.
 
-The current application UI is in Czech. This README describes both the available prototype and the planned product; team collaboration and ambient audio are not implemented yet.
+The separate FastAPI backend implements registration, login/logout, teams, membership roles, rooms, and single-use invitation codes with PostgreSQL and Alembic migrations. All 21 backend tests pass on both SQLite and PostgreSQL. The desktop does not connect to this service yet; client integration and live collaboration are next in Phase 3.
+
+The current application UI is in Czech. This README describes both the available prototype and the planned product; live team collaboration and ambient audio are not implemented yet.
 
 ## Current features
 
@@ -26,10 +28,23 @@ The current application UI is in Czech. This README describes both the available
 
 ## Roadmap
 
+### Planned desktop navigation
+
+After login, the main dashboard will list the user's accessible rooms grouped by
+team, with actions to create a room, create a team, accept an invitation, and enter
+a room. Room creation follows team permissions. An empty dashboard will offer
+team creation or invitation acceptance.
+
+The current local Git overview will become part of the selected room's workspace,
+alongside members, activity, and later Conflict Radar and ambient audio. Users can
+return to the dashboard to switch rooms. In this UX, a "server" means a team space;
+selecting multiple backend hosts is a separate future feature. These screens are
+planned for Phase 3 and are not implemented yet.
+
 | Phase | Focus                | Planned outcome                                                                                        | Status      |
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------ | ----------- |
 | 1     | Local prototype      | Desktop window, repository selection, Git overview, automatic refresh, and native validation           | Complete    |
-| 2     | Backend and accounts | FastAPI service, database schema, registration, authentication, teams, and rooms                       | Planned     |
+| 2     | Backend and accounts | FastAPI service, database schema, registration, authentication, teams, and rooms                       | Complete    |
 | 3     | Live collaboration   | WebSocket connection, online presence, shared Git metadata, and a project event timeline               | Planned     |
 | 4     | Conflict Radar       | Detect overlapping file changes, update warnings, add notifications, and suppress duplicate alerts     | Planned     |
 | 5     | Ambient rooms        | One licensed audio track, synchronized playback, individual volume, and reconnect recovery             | Planned     |
@@ -52,11 +67,11 @@ Conflict Radar will indicate potential overlap; it will not guarantee that Git w
 | Git integration    | Git CLI through a standalone Rust crate | Implemented; six Rust tests passed       |
 | Frontend testing   | Vitest and Testing Library              | Implemented                              |
 | Browser testing    | Playwright and Chromium                 | Implemented                              |
-| Backend            | Python and FastAPI                      | Planned                                  |
-| Database           | PostgreSQL                              | Planned                                  |
+| Backend            | Python and FastAPI                      | Implemented; 21 tests passed on each database |
+| Database           | PostgreSQL and Alembic                  | Implemented; migrations verified          |
 | Realtime transport | WebSocket                               | Planned                                  |
 | Local persistence  | SQLite                                  | Planned                                  |
-| Infrastructure     | Docker Compose and GitHub Actions       | Planned                                  |
+| Infrastructure     | Docker Compose and GitHub Actions       | Local PostgreSQL Compose implemented; CI planned |
 
 ## Getting started
 
@@ -94,6 +109,24 @@ npm run dev
 Open `http://127.0.0.1:1420` and choose **Prohlédnout ukázku** (View demo). The browser preview uses labeled static sample data. Access to a real local repository requires the desktop application.
 
 Stop the standalone preview server before running `npm run tauri dev`; both use port 1420.
+
+### Backend and accounts
+
+With Python 3.12+, uv, and Docker Compose installed, run from the project root:
+
+```sh
+docker compose up -d --wait db
+cd backend
+uv sync --locked
+cp .env.example .env
+uv run alembic upgrade head
+uv run uvicorn digita_api.main:create_app --factory --host 127.0.0.1 --port 8000 --no-proxy-headers
+```
+
+Open `http://127.0.0.1:8000/docs` to register, log in, create a team and room, and
+invite a second account. See [backend setup and API workflow](backend/README.md)
+for permissions, configuration, security choices, and PostgreSQL test instructions.
+From `backend/`, run `uv run pytest -q` for the isolated SQLite test suite.
 
 ## Development and testing
 
@@ -142,6 +175,10 @@ src/                    React interface and frontend tests
 src-tauri/              Tauri application, configuration, and icons
 crates/git-presence/    Git inspection library and Rust tests
 e2e/                    Playwright browser tests
+backend/digita_api/     FastAPI accounts, teams, rooms, and invitations
+backend/migrations/     Alembic database migrations
+backend/tests/          API, authorization, concurrency, and migration tests
+compose.yaml            Local PostgreSQL development database
 ```
 
 ## Privacy and scope
@@ -158,4 +195,5 @@ The MVP does not include a code editor, shared terminal, live collaborative edit
 - Git changes are detected by polling. Large repositories can take longer to refresh, and Git processes currently have no timeout.
 - File names containing invalid UTF-8 are displayed with replacement characters.
 - Installer packaging is disabled during the prototype phase.
-- Accounts, rooms, networking, Conflict Radar, and ambient playback remain on the roadmap.
+- Accounts and rooms are available through the backend API. Desktop account screens, networking, Conflict Radar, and ambient playback remain on the roadmap.
+- The backend is configured for local development; public deployment and multi-worker hardening remain part of release readiness. See the backend README for current limits.

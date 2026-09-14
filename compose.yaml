@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: digita
+      POSTGRES_PASSWORD: digita-local
+      POSTGRES_DB: digita
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - digita-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U digita -d digita"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  digita-postgres:

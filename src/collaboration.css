@@ -1,0 +1,359 @@
+.collaboration-shell {
+  min-height: 100vh;
+}
+.collab-topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 84px;
+  padding: 20px 5vw;
+  border-bottom: 1px solid #292929;
+}
+.wordmark {
+  background: none;
+  font-size: 27px;
+  font-weight: 650;
+  letter-spacing: -1.5px;
+}
+.wordmark span {
+  font-size: 10px;
+  color: #888;
+  margin-left: 8px;
+  vertical-align: top;
+  letter-spacing: 0;
+}
+.signed-user {
+  margin-left: auto;
+  color: #aaa;
+}
+.dashboard {
+  max-width: 1300px;
+  margin: auto;
+  padding: 64px 5vw;
+}
+.dashboard-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.dashboard h1,
+.login-page h1 {
+  font-size: clamp(30px, 4vw, 50px);
+  letter-spacing: -1.8px;
+  font-weight: 400;
+}
+.dashboard p,
+.login-panel p,
+.privacy-controls p {
+  color: #999;
+  line-height: 1.7;
+}
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 24px 0;
+}
+.text-button {
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  padding: 12px 4px;
+  font-size: 12px;
+}
+.action-panel {
+  border: 1px solid #3b3b3b;
+  padding: 24px;
+  margin: 24px 0;
+  max-width: 680px;
+}
+.action-panel h2,
+.privacy-controls h2,
+.team-section h2,
+.room-columns h2 {
+  font-size: 17px;
+  font-weight: 500;
+}
+.action-panel form,
+.login-panel form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.action-panel label,
+.login-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: #bbb;
+  font-size: 12px;
+}
+.action-panel input,
+.action-panel select,
+.login-panel input:not([type="checkbox"]) {
+  width: 100%;
+  background: #101010;
+  border: 1px solid #444;
+  color: #eee;
+  padding: 13px;
+  font: inherit;
+  border-radius: 0;
+}
+.form-error {
+  color: #f4c1b9 !important;
+  border: 1px solid #77574f;
+  padding: 14px;
+  overflow-wrap: anywhere;
+}
+.team-section {
+  margin-top: 46px;
+}
+.team-heading {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #292929;
+}
+.team-heading h2 {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-right: auto;
+  overflow-wrap: anywhere;
+}
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+.room-card {
+  min-height: 180px;
+  padding: 25px;
+  text-align: left;
+  background: linear-gradient(140deg, #181818, #101010);
+  border: 1px solid #343434;
+}
+.room-card:hover {
+  border-color: #aaa;
+  background: #1e1e1e;
+}
+.room-card h3 {
+  font-size: 21px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.room-card span {
+  display: flex;
+  justify-content: space-between;
+  color: #999;
+  font-size: 12px;
+}
+.dashboard-empty {
+  margin-top: 60px;
+  padding: 60px 20px;
+  text-align: center;
+  border: 1px dashed #333;
+}
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+}
+.login-story {
+  padding: 8vh 7vw;
+  background: radial-gradient(ellipse at bottom, #212121, transparent 65%);
+  border-right: 1px solid #292929;
+}
+.login-story .eyebrow {
+  margin-top: 80px;
+}
+.login-story p {
+  color: #aaa;
+  line-height: 1.9;
+  max-width: 440px;
+}
+.login-grid {
+  border: 1px solid #393939;
+  width: 150px;
+  height: 150px;
+  display: grid;
+  place-items: center;
+  margin: 65px 25px 25px;
+  transform: rotate(15deg);
+}
+.login-grid svg {
+  transform: rotate(-15deg);
+}
+.login-panel {
+  width: min(100%, 500px);
+  padding: 14vh 40px 50px;
+  margin: auto;
+}
+.login-panel h2 {
+  font-size: 30px;
+  font-weight: 400;
+  margin-bottom: 32px;
+}
+.login-local {
+  border-top: 1px solid #333;
+  margin-top: 32px;
+  padding-top: 16px;
+}
+.local-nav {
+  padding: 12px 24px;
+  border-bottom: 1px solid #333;
+}
+.room-workspace {
+  max-width: 1600px;
+  margin: auto;
+  padding: 28px 4vw;
+}
+.room-heading {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.room-heading h1 {
+  font-size: 26px;
+  font-weight: 400;
+  margin-right: auto;
+  overflow-wrap: anywhere;
+}
+.room-heading .connection {
+  white-space: normal;
+  max-width: 420px;
+  line-height: 1.5;
+}
+.privacy-controls {
+  border: 1px solid #3b3b3b;
+  padding: 20px 24px;
+  margin: 26px 0;
+}
+.check-label,
+.login-panel .check-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.check-label input {
+  accent-color: #ddd;
+  flex-shrink: 0;
+}
+.privacy-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-top: 16px;
+}
+.muted {
+  color: #888;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.room-columns {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+.room-columns > section {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #292929;
+}
+.member-card {
+  border-top: 1px solid #292929;
+  padding: 16px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.member-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.member-title span {
+  color: #999;
+  font-size: 11px;
+}
+.shared-files {
+  padding-left: 16px;
+  font-family: monospace;
+  max-height: 160px;
+  overflow: auto;
+}
+.room-timeline ol {
+  padding: 0;
+  list-style: none;
+  max-height: 340px;
+  overflow: auto;
+}
+.room-timeline li {
+  display: flex;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid #252525;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.room-timeline time {
+  color: #888;
+  font-family: monospace;
+  flex-shrink: 0;
+}
+.embedded-workspace {
+  display: block !important;
+  min-height: 0;
+}
+.embedded-workspace > .sidebar,
+.embedded-workspace .topbar,
+.embedded-workspace .page-heading {
+  display: none;
+}
+.embedded-workspace .main-shell {
+  margin: 0;
+  width: 100%;
+}
+.embedded-workspace main {
+  padding: 0;
+}
+@media (max-width: 760px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+  .login-story {
+    padding: 30px 24px;
+    border-right: 0;
+    border-bottom: 1px solid #292929;
+  }
+  .login-story .eyebrow {
+    margin-top: 30px;
+  }
+  .login-grid {
+    display: none;
+  }
+  .login-panel {
+    padding: 35px 24px;
+  }
+  .collab-topbar {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .room-columns {
+    grid-template-columns: 1fr;
+  }
+  .dashboard {
+    padding: 32px 20px;
+  }
+  .team-heading {
+    flex-wrap: wrap;
+  }
+}

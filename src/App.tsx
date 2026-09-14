@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { RepositorySnapshot } from "./repository";
 import { isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
@@ -56,7 +57,13 @@ function Mark({ small = false }: { small?: boolean }) {
   );
 }
 
-export default function App() {
+export default function App({
+  onSnapshot,
+  embedded = false,
+}: {
+  onSnapshot?: (value: RepositorySnapshot | null) => void;
+  embedded?: boolean;
+}) {
   const desktop = isTauri();
   const [path, setPath] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
@@ -65,6 +72,9 @@ export default function App() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const state = useRepository(path);
+  useEffect(() => {
+    onSnapshot?.(demo || state.error ? null : state.snapshot);
+  }, [demo, state.snapshot, state.error, onSnapshot]);
   const repo = demo ? demoRepository : state.snapshot;
   const error = pickerError || state.error;
   const staged = repo?.files.filter(isStaged).length ?? 0;
@@ -124,7 +134,7 @@ export default function App() {
   );
 
   return (
-    <div className="app-shell">
+    <div className={embedded ? "app-shell embedded-workspace" : "app-shell"}>
       <aside className="sidebar">
         <a
           className="brand"
