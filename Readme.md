@@ -8,9 +8,9 @@ The interface follows a minimal black-and-white design with sharp edges, fine li
 
 ## Project status
 
-**Phase 1: local prototype — in progress.**
+**Phase 1: local prototype — complete.**
 
-The frontend and Git integration are implemented. The frontend build, six component/hook tests, and two browser tests have passed. Native desktop execution and the Rust test suite still need verification in an environment with Rust and the required Tauri system libraries.
+The frontend and Git integration are implemented. The frontend build, six component/hook tests, six Rust Git tests, and two browser tests have passed. The native application passes `cargo check`, builds, and displays its desktop interface on Arch Linux with Wayland. The user has confirmed native repository selection, branch and latest commit display, and automatic updates after a file change. Next is Phase 2: backend and accounts.
 
 The current application UI is in Czech. This README describes both the available prototype and the planned product; team collaboration and ambient audio are not implemented yet.
 
@@ -28,7 +28,7 @@ The current application UI is in Czech. This README describes both the available
 
 | Phase | Focus                | Planned outcome                                                                                        | Status      |
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------ | ----------- |
-| 1     | Local prototype      | Desktop window, repository selection, Git overview, automatic refresh, and native validation           | In progress |
+| 1     | Local prototype      | Desktop window, repository selection, Git overview, automatic refresh, and native validation           | Complete    |
 | 2     | Backend and accounts | FastAPI service, database schema, registration, authentication, teams, and rooms                       | Planned     |
 | 3     | Live collaboration   | WebSocket connection, online presence, shared Git metadata, and a project event timeline               | Planned     |
 | 4     | Conflict Radar       | Detect overlapping file changes, update warnings, add notifications, and suppress duplicate alerts     | Planned     |
@@ -47,9 +47,9 @@ Conflict Radar will indicate potential overlap; it will not guarantee that Git w
 
 | Area               | Technology                              | Status                                   |
 | ------------------ | --------------------------------------- | ---------------------------------------- |
-| Desktop shell      | Tauri 2 and Rust                        | Implemented; native verification pending |
+| Desktop shell      | Tauri 2 and Rust                        | Build and window startup verified on Arch Linux |
 | Interface          | React, TypeScript, Vite, Lucide         | Implemented                              |
-| Git integration    | Git CLI through a standalone Rust crate | Implemented; Rust tests pending          |
+| Git integration    | Git CLI through a standalone Rust crate | Implemented; six Rust tests passed       |
 | Frontend testing   | Vitest and Testing Library              | Implemented                              |
 | Browser testing    | Playwright and Chromium                 | Implemented                              |
 | Backend            | Python and FastAPI                      | Planned                                  |
@@ -120,6 +120,21 @@ npm run format
 
 Browser tests exercise the demo, file filters, search, disconnection, responsive layouts, and reduced-motion support. They save screenshots to the ignored `artifacts/` directory.
 
+Rust dependency versions are recorded in `src-tauri/Cargo.lock` and `crates/git-presence/Cargo.lock` for reproducible application builds and Git tests.
+
+### Native validation (2026-09-14)
+
+Verified on Arch Linux with Wayland and WebKitGTK 2.52.6:
+
+- `npm test`: six component/hook tests passed.
+- `npm run build`: TypeScript check and frontend build passed.
+- `cargo test --manifest-path crates/git-presence/Cargo.toml`: six Git tests passed.
+- `cargo check --manifest-path src-tauri/Cargo.toml`: passed.
+- `npm run test:e2e`: two Chromium browser tests passed.
+- `npm run tauri dev -- --no-watch`: native build and desktop window rendering passed.
+
+The user confirmed the native manual check with `/home/Fox/Projects/DiGitA`: directory selection, branch and latest commit display, and automatic refresh after a file change all worked. Native disconnection was not separately confirmed. Browser tests use demo data and do not validate the native picker or Tauri IPC.
+
 ## Project structure
 
 ```text
@@ -139,7 +154,7 @@ The MVP does not include a code editor, shared terminal, live collaborative edit
 
 ## Known limitations
 
-- Native desktop execution and Rust tests have not yet been validated in the current development environment.
+- Native validation has been performed on Arch Linux only; other operating systems remain unverified.
 - Git changes are detected by polling. Large repositories can take longer to refresh, and Git processes currently have no timeout.
 - File names containing invalid UTF-8 are displayed with replacement characters.
 - Installer packaging is disabled during the prototype phase.
