@@ -14,6 +14,12 @@ test("browser preview, filtering and layouts", async ({ page }) => {
     fullPage: true,
     animations: "disabled",
   });
+  // The fixed sidebar must not cover navigation back to online mode.
+  await page.getByRole("button", { name: "Přihlásit se online" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Přihlásit se", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Lokální režim" }).click();
   await page.getByRole("button", { name: "Prohlédnout ukázku" }).click();
   await expect(page.getByText("UKÁZKOVÝ REPOZITÁŘ")).toBeVisible();
   await expect(page.locator("tbody tr")).toHaveCount(4);
@@ -44,6 +50,10 @@ test("browser preview, filtering and layouts", async ({ page }) => {
   await page.getByRole("button", { name: "Odpojit repozitář" }).click();
   await expect(
     page.getByRole("heading", { name: "Velké věci začínají lokálně." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Přihlásit se online" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Přihlásit se", exact: true }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -16,9 +16,19 @@ export type Presence = {
   commit_message: string | null;
   sharing: Sharing;
 };
+export type AmbientState = {
+  track: "soft-noise-v1";
+  duration_ms: number;
+  playing: boolean;
+  position_ms: number;
+  revision: number;
+};
+export type AmbientClock = AmbientState & { receivedAt: number };
 export type RoomState = {
   type: "room.state";
   room_id: string;
+  ambient: AmbientState;
+  conflicts: { id: string; path: string; user_ids: string[] }[];
   members: {
     user_id: string;
     display_name: string;
@@ -28,7 +38,7 @@ export type RoomState = {
     id: string;
     type: string;
     created_at: string;
-    user_id: string;
+    user_id: string | null;
     display_name: string;
   }[];
 };
@@ -39,7 +49,15 @@ export function sharedPresence(
   sharing: Sharing,
 ): Presence | null {
   if (!enabled || !snapshot) return null;
-  const paths = snapshot.files.map((f) => f.path);
+  const paths = [
+    ...new Set(
+      snapshot.files.flatMap((f) =>
+        f.originalPath && (f.indexStatus === "R" || f.worktreeStatus === "R")
+          ? [f.path, f.originalPath]
+          : [f.path],
+      ),
+    ),
+  ].sort();
   // Never truncate a file list silently: a large repository shares only its count.
   const canShareFiles =
     sharing.files &&
@@ -50,7 +68,7 @@ export function sharedPresence(
     repository_id: roomId,
     branch: sharing.branch ? snapshot.branch.slice(0, 256) : null,
     files: canShareFiles ? paths : null,
-    changed_count: paths.length,
+    changed_count: snapshot.files.length,
     commit_hash: snapshot.commit?.hash ?? null,
     commit_message: sharing.commit_message
       ? (snapshot.commit?.subject.slice(0, 512) ?? null)
@@ -65,6 +83,7 @@ export function useRoom(
   presence: Presence | null,
 ) {
   const [state, setState] = useState<RoomState | null>(null);
+  const [ambient, setAmbient] = useState<AmbientClock | null>(null);
   const [status, setStatus] = useState("connecting");
   const [attempt, setAttempt] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
@@ -90,6 +109,7 @@ export function useRoom(
     let failures = 0;
     let terminal = false;
     let lastReceived = Date.now();
+    let pingAt = 0;
     function connect() {
       if (!active) return;
       if (!navigator.onLine) {
@@ -108,8 +128,10 @@ export function useRoom(
         socket.send(JSON.stringify({ type: "auth", token }));
         heartbeat = setInterval(() => {
           if (Date.now() - lastReceived > 45000) socket.close();
-          else if (socket.readyState === WebSocket.OPEN)
+          else if (socket.readyState === WebSocket.OPEN) {
+            pingAt = performance.now();
             socket.send(JSON.stringify({ type: "ping" }));
+          }
         }, 15000);
       };
       socket.onmessage = (event) => {
@@ -117,7 +139,17 @@ export function useRoom(
         lastReceived = Date.now();
         try {
           const data = JSON.parse(event.data);
+          const receivedAt = performance.now();
+          if (data.type === "pong" && data.ambient) {
+            const delay = pingAt
+              ? Math.min((receivedAt - pingAt) / 2, 1000)
+              : 0;
+            setAmbient({ ...data.ambient, receivedAt: receivedAt - delay });
+            pingAt = 0;
+            return;
+          }
           if (data.type !== "room.state" || data.room_id !== roomId) return;
+          setAmbient(data.ambient ? { ...data.ambient, receivedAt } : null);
           setState(data);
           setStatus("online");
           failures = 0;
@@ -136,6 +168,7 @@ export function useRoom(
         ready.current = false;
         // Remove stale private metadata immediately on disconnect/revocation.
         setState(null);
+        setAmbient(null);
         if ([4401, 4403, 4009, 1008].includes(event.code)) {
           terminal = true;
           setStatus(
@@ -155,6 +188,7 @@ export function useRoom(
       if (terminal) return;
       ready.current = false;
       setState(null);
+      setAmbient(null);
       setStatus("offline");
       socketRef.current?.close();
     }
@@ -170,6 +204,7 @@ export function useRoom(
     window.addEventListener("offline", offline);
     window.addEventListener("online", online);
     setState(null);
+    setAmbient(null);
     connect();
     return () => {
       active = false;
@@ -187,5 +222,17 @@ export function useRoom(
       socketRef.current = null;
     };
   }, [roomId, token, attempt]);
-  return { state, status, reconnect: () => setAttempt((a) => a + 1) };
+  function setPlaying(playing: boolean) {
+    if (!ready.current || socketRef.current?.readyState !== WebSocket.OPEN)
+      return false;
+    socketRef.current.send(JSON.stringify({ type: "ambient.set", playing }));
+    return true;
+  }
+  return {
+    state,
+    ambient,
+    status,
+    setPlaying,
+    reconnect: () => setAttempt((a) => a + 1),
+  };
 }

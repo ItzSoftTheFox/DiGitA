@@ -19,7 +19,7 @@ describe("shared metadata", () => {
       ...hidden,
       files: true,
     })!;
-    expect(data.files).toEqual(demoRepository.files.map((f) => f.path));
+    expect(data.files).toEqual(demoRepository.files.map((f) => f.path).sort());
     expect(data.branch).toBeNull();
     expect(sharedPresence("room", null, true, hidden)).toBeNull();
   });
@@ -38,5 +38,24 @@ describe("shared metadata", () => {
     expect(data.files).toBeNull();
     expect(data.sharing.files).toBe(false);
     expect(data.changed_count).toBe(400);
+  });
+  it("includes both rename paths without inflating the changed-file count", () => {
+    const repo = {
+      ...demoRepository,
+      files: [
+        {
+          ...demoRepository.files[0],
+          path: "new.ts",
+          originalPath: "old.ts",
+          indexStatus: "R",
+        },
+      ],
+    };
+    const data = sharedPresence("room", repo, true, {
+      ...hidden,
+      files: true,
+    })!;
+    expect(data.files).toEqual(["new.ts", "old.ts"]);
+    expect(data.changed_count).toBe(1);
   });
 });

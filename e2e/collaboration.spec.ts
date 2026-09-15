@@ -39,46 +39,49 @@ test("two accounts create a room, share private-by-default Git presence and reco
     }),
   );
   // Only the native filesystem boundary is mocked. HTTP and WebSocket traffic is real.
-  await owner.addInitScript(() => {
-    const native = window as unknown as {
-      isTauri: boolean;
-      gitSnapshot: unknown;
-      __TAURI_INTERNALS__: unknown;
-    };
-    native.isTauri = true;
-    native.gitSnapshot = {
-      root: "/workspace/private-repository",
-      name: "Private local folder",
-      branch: "feature/team",
-      detached: false,
-      commit: {
-        hash: "a".repeat(40),
-        subject: "Private commit message",
-        author: "Private Author",
-        authoredAt: "2026-09-14T00:00:00Z",
-      },
-      files: [
-        {
-          path: "src/team.ts",
-          originalPath: null,
-          indexStatus: ".",
-          worktreeStatus: "M",
-          conflicted: false,
+  for (const page of [owner, member])
+    await page.addInitScript(() => {
+      const native = window as unknown as {
+        isTauri: boolean;
+        gitSnapshot: unknown;
+        __TAURI_INTERNALS__: unknown;
+      };
+      native.isTauri = true;
+      native.gitSnapshot = {
+        root: "/workspace/private-repository",
+        name: "Private local folder",
+        branch: "feature/team",
+        detached: false,
+        commit: {
+          hash: "a".repeat(40),
+          subject: "Private commit message",
+          author: "Private Author",
+          authoredAt: "2026-09-14T00:00:00Z",
         },
-      ],
-    };
-    native.__TAURI_INTERNALS__ = {
-      invoke: async (command: string) => {
-        if (command === "read_repository")
-          return structuredClone(native.gitSnapshot);
-        if (command === "plugin:dialog|open")
-          return "/workspace/private-repository";
-        if (["load_session", "clear_session", "save_session"].includes(command))
-          return null;
-        throw new Error(`Unexpected native command: ${command}`);
-      },
-    };
-  });
+        files: [
+          {
+            path: "src/team.ts",
+            originalPath: null,
+            indexStatus: ".",
+            worktreeStatus: "M",
+            conflicted: false,
+          },
+        ],
+      };
+      native.__TAURI_INTERNALS__ = {
+        invoke: async (command: string) => {
+          if (command === "read_repository")
+            return structuredClone(native.gitSnapshot);
+          if (command === "plugin:dialog|open")
+            return "/workspace/private-repository";
+          if (
+            ["load_session", "clear_session", "save_session"].includes(command)
+          )
+            return null;
+          throw new Error(`Unexpected native command: ${command}`);
+        },
+      };
+    });
   try {
     const suffix = Date.now();
     await register(owner, "Anna", `anna-${suffix}@example.com`);
@@ -105,10 +108,83 @@ test("two accounts create a room, share private-by-default Git presence and reco
       .click();
     await member.getByLabel("Kód pozvánky", { exact: true }).fill(code);
     await member.getByRole("button", { name: "Přijmout pozvánku" }).click();
+    await expect(
+      member.getByRole("button", { name: /Společný projekt/ }),
+    ).toBeVisible();
+    await owner.getByRole("button", { name: "Vytvořit místnost" }).click();
+    await owner.getByLabel("Název", { exact: true }).fill("Další projekt");
+    await owner.getByRole("button", { name: "Vytvořit", exact: true }).click();
+    await expect(
+      owner.getByRole("button", { name: /Další projekt/ }),
+    ).toBeVisible();
+    await expect(
+      member.getByRole("button", { name: /Další projekt/ }),
+    ).toHaveCount(0);
+    await member.getByRole("button", { name: "Obnovit místnosti" }).click();
+    await expect(
+      member.getByRole("button", { name: /Další projekt/ }),
+    ).toBeVisible();
+    await member.getByRole("button", { name: "Lokální režim" }).click();
+    await member
+      .getByRole("button", { name: "Zpět do týmového prostoru" })
+      .click();
+    await expect(
+      member.getByRole("heading", { name: "Všechno má své místo." }),
+    ).toBeVisible();
     await owner.getByRole("button", { name: /Společný projekt/ }).click();
     await member.getByRole("button", { name: /Společný projekt/ }).click();
     await expect(owner.getByRole("status")).toHaveText("Živě připojeno");
     await expect(member.getByRole("status")).toHaveText("Živě připojeno");
+    const ownerAudio = owner.locator(".ambient-player audio");
+    const memberAudio = member.locator(".ambient-player audio");
+    await owner.getByRole("button", { name: "Přehrát pro všechny" }).click();
+    await expect(
+      member.getByRole("button", { name: "Pozastavit pro všechny" }),
+    ).toBeVisible();
+    expect(
+      await memberAudio.evaluate((el: HTMLAudioElement) => el.paused),
+    ).toBe(true);
+    await owner.getByRole("button", { name: "Zapnout můj poslech" }).click();
+    await member.getByRole("button", { name: "Zapnout můj poslech" }).click();
+    await expect
+      .poll(() =>
+        memberAudio.evaluate((el: HTMLAudioElement) => el.currentTime),
+      )
+      .toBeGreaterThan(1);
+    await expect
+      .poll(async () => {
+        const a = await ownerAudio.evaluate(
+          (el: HTMLAudioElement) => el.currentTime,
+        );
+        const b = await memberAudio.evaluate(
+          (el: HTMLAudioElement) => el.currentTime,
+        );
+        const difference = Math.abs(a - b);
+        return Math.min(difference, 30 - difference);
+      })
+      .toBeLessThan(0.8);
+    await member.getByRole("slider", { name: /Moje hlasitost/ }).fill("60");
+    expect(await ownerAudio.evaluate((el: HTMLAudioElement) => el.volume)).toBe(
+      0.25,
+    );
+    expect(
+      await memberAudio.evaluate((el: HTMLAudioElement) => el.volume),
+    ).toBe(0.6);
+    await member
+      .getByRole("button", { name: "Pozastavit pro všechny" })
+      .click();
+    await expect
+      .poll(() => ownerAudio.evaluate((el: HTMLAudioElement) => el.paused))
+      .toBe(true);
+    await expect(
+      owner.getByRole("button", { name: "Přehrát pro všechny" }),
+    ).toBeVisible();
+    // Wait beyond the shared anti-flapping interval before resuming.
+    await owner.waitForTimeout(550);
+    await owner.getByRole("button", { name: "Přehrát pro všechny" }).click();
+    await expect
+      .poll(() => memberAudio.evaluate((el: HTMLAudioElement) => el.paused))
+      .toBe(false);
     const anna = member.locator(".member-card").filter({ hasText: "Anna" });
     await expect(anna).toContainText("Online");
     await owner
@@ -128,6 +204,23 @@ test("two accounts create a room, share private-by-default Git presence and reco
     await owner.getByLabel("Název větve", { exact: true }).check();
     await expect(anna).toContainText("src/team.ts");
     await expect(anna).toContainText("feature/team");
+    await member
+      .getByRole("button", { name: "Připojit repozitář", exact: true })
+      .click();
+    await member
+      .getByLabel("Toto je repozitář této místnosti — sdílet Git stav")
+      .check();
+    const radar = member.locator(".conflict-radar");
+    await expect(radar.locator(".conflict-list li")).toHaveCount(0);
+    await member.getByLabel("Názvy souborů", { exact: true }).check();
+    await expect(radar.locator(".conflict-list li")).toHaveCount(1);
+    await expect(radar).toContainText("src/team.ts");
+    await expect(radar).toContainText("Anna");
+    await expect(radar).toContainText("Petr (vy)");
+    await member.screenshot({
+      path: "artifacts/conflict-radar.png",
+      fullPage: true,
+    });
     await owner.evaluate(() => {
       const native = window as unknown as {
         gitSnapshot: { commit: { hash: string }; files: unknown[] };
@@ -144,6 +237,16 @@ test("two accounts create a room, share private-by-default Git presence and reco
       ];
     });
     await expect(anna).toContainText("src/next.ts", { timeout: 10000 });
+    await expect(radar.locator(".conflict-list li")).toHaveCount(0);
+    await member.evaluate(() => {
+      const native = window as unknown as {
+        gitSnapshot: { files: { path: string }[] };
+      };
+      native.gitSnapshot.files[0].path = "src/next.ts";
+    });
+    await expect(radar.locator(".conflict-list li")).toHaveCount(1, {
+      timeout: 10000,
+    });
     await expect(member.locator(".room-timeline")).toContainText(
       "má jiný poslední commit",
     );
@@ -156,13 +259,42 @@ test("two accounts create a room, share private-by-default Git presence and reco
       timeout: 20000,
     });
     await expect(anna).not.toContainText("src/next.ts");
+    await expect(radar.locator(".conflict-list li")).toHaveCount(0);
+    await expect
+      .poll(() => memberAudio.evaluate((el: HTMLAudioElement) => el.paused))
+      .toBe(true);
     await memberContext.setOffline(false);
     await expect(member.getByRole("status")).toHaveText("Živě připojeno", {
       timeout: 20000,
     });
     await expect(anna).toContainText("src/next.ts");
+    await expect(radar.locator(".conflict-list li")).toHaveCount(1);
+    await expect
+      .poll(() => memberAudio.evaluate((el: HTMLAudioElement) => el.paused))
+      .toBe(false);
+    await expect
+      .poll(async () => {
+        const a = await ownerAudio.evaluate(
+          (el: HTMLAudioElement) => el.currentTime,
+        );
+        const b = await memberAudio.evaluate(
+          (el: HTMLAudioElement) => el.currentTime,
+        );
+        const difference = Math.abs(a - b);
+        return Math.min(difference, 30 - difference);
+      })
+      .toBeLessThan(0.8);
+    await expect(member.locator(".team-presence [role=alert]")).toHaveCount(0);
+    await member.screenshot({
+      path: "artifacts/ambient-room.png",
+      fullPage: true,
+    });
     await owner.getByLabel("Názvy souborů", { exact: true }).uncheck();
     await expect(anna).not.toContainText("src/next.ts");
+    await expect(radar.locator(".conflict-list li")).toHaveCount(0);
+    await expect(member.locator(".room-timeline")).not.toContainText(
+      "src/next.ts",
+    );
     await owner.getByRole("button", { name: "Odpojit repozitář" }).click();
     await expect(anna).toContainText("Git stav se nesdílí.");
     expect(frames.join("\n")).not.toContain("/workspace/private-repository");

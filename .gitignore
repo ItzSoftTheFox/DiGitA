@@ -22,6 +22,33 @@ coverage/
 .codex/
 EoROrtScr/
 
+# Private keys, signing credentials, and local secret stores
+.ssh/
+secrets/
+secrets.json
+secrets.*.json
+credentials.json
+service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ecdsa
+id_ed25519
+
+# Local database copies and backups (may contain account data)
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.db-*
+*.dump
+*.sql.gz
+backups/
+
 # Private project planning document
 /devroom-project.md
 

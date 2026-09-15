@@ -38,6 +38,42 @@ class Update(BaseModel):
     presence: Presence | None
 
 
+class AmbientUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["ambient.set"]
+    playing: bool = Field(strict=True)
+
+
+@dataclass
+class Ambient:
+    playing: bool = False
+    position_ms: float = 0
+    anchor: float = field(default_factory=monotonic)
+    revision: int = 0
+    last_change: float = float("-inf")
+
+    def snapshot(self):
+        elapsed = (monotonic() - self.anchor) * 1000 if self.playing else 0
+        return {
+            "track": "soft-noise-v1",
+            "duration_ms": 30000,
+            "playing": self.playing,
+            "position_ms": (self.position_ms + elapsed) % 30000,
+            "revision": self.revision,
+        }
+
+    def set_playing(self, playing: bool):
+        timestamp = monotonic()
+        if self.playing == playing or timestamp - self.last_change < 0.5:
+            return False
+        self.position_ms = self.snapshot()["position_ms"]
+        self.anchor = timestamp
+        self.playing = playing
+        self.revision += 1
+        self.last_change = timestamp
+        return True
+
+
 @dataclass
 class Peer:
     socket: WebSocket
@@ -52,6 +88,9 @@ class LiveRoom:
     peers: dict[str, Peer] = field(default_factory=dict)
     events: deque = field(default_factory=lambda: deque(maxlen=100))
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    ambient: Ambient = field(default_factory=Ambient)
+    conflicts: dict[str, dict] = field(default_factory=dict)
+    conflict_event_times: dict[str, float] = field(default_factory=dict)
 
 
 class Hub:
@@ -87,6 +126,42 @@ class Hub:
             }
         )
 
+    def update_conflicts(self, room: LiveRoom):
+        owners: dict[str, list[str]] = {}
+        for peer in room.peers.values():
+            presence = peer.presence
+            if presence and presence["sharing"]["files"]:
+                for path in set(presence["files"] or []):
+                    owners.setdefault(path, []).append(peer.user_id)
+        current = {
+            path: {
+                "id": room.conflicts[path]["id"] if path in room.conflicts else identifier(),
+                "path": path,
+                "user_ids": sorted(users),
+            }
+            for path, users in sorted(owners.items())
+            if len(users) > 1
+        }
+        for kind, changed in (
+            ("conflict.detected", current.keys() - room.conflicts.keys()),
+            ("conflict.resolved", room.conflicts.keys() - current.keys()),
+        ):
+            timestamp = monotonic()
+            if changed and timestamp - room.conflict_event_times.get(kind, float("-inf")) >= 30:
+                # One generic event per batch, throttled during reconnects/privacy toggles.
+                # Never retain paths or participants in historical conflict events.
+                room.events.append(
+                    {
+                        "id": identifier(),
+                        "type": kind,
+                        "created_at": now().isoformat(),
+                        "user_id": None,
+                        "display_name": "Conflict Radar",
+                    }
+                )
+                room.conflict_event_times[kind] = timestamp
+        room.conflicts = current
+
     async def broadcast(self, room_id: str, room: LiveRoom):
         # Recheck recipients before sending private room state, including revoked sessions.
         for user_id, peer in list(room.peers.items()):
@@ -96,24 +171,33 @@ class Hub:
                     await asyncio.wait_for(peer.socket.close(code=4403), 2)
                 except (TimeoutError, RuntimeError, OSError):
                     pass
-        state = {
-            "type": "room.state",
-            "room_id": room_id,
-            "members": [
-                {"user_id": p.user_id, "display_name": p.name, "presence": p.presence}
-                for p in room.peers.values()
-            ],
-            "events": list(room.events),
-        }
-        for user_id, peer in list(room.peers.items()):
-            try:
-                await asyncio.wait_for(peer.socket.send_json(state), 2)
-            except (TimeoutError, RuntimeError, OSError):
-                room.peers.pop(user_id, None)
+        while True:
+            self.update_conflicts(room)
+            state = {
+                "type": "room.state",
+                "room_id": room_id,
+                "members": [
+                    {"user_id": p.user_id, "display_name": p.name, "presence": p.presence}
+                    for p in room.peers.values()
+                ],
+                "events": list(room.events),
+                "conflicts": list(room.conflicts.values()),
+                "ambient": room.ambient.snapshot(),
+            }
+            failed = False
+            for user_id, peer in list(room.peers.items()):
                 try:
-                    await asyncio.wait_for(peer.socket.close(code=1013), 2)
+                    await asyncio.wait_for(peer.socket.send_json(state), 2)
                 except (TimeoutError, RuntimeError, OSError):
-                    pass
+                    room.peers.pop(user_id, None)
+                    failed = True
+                    try:
+                        await asyncio.wait_for(peer.socket.close(code=1013), 2)
+                    except (TimeoutError, RuntimeError, OSError):
+                        pass
+            if not failed:
+                break
+            # Survivors must not retain warnings involving a failed recipient.
 
 
 def router(hub: Hub, allowed_origins: list[str]) -> APIRouter:
@@ -184,7 +268,20 @@ def router(hub: Hub, allowed_origins: list[str]) -> APIRouter:
                     break
                 data = json.loads(raw)
                 if data == {"type": "ping"}:
-                    await socket.send_json({"type": "pong"})
+                    await socket.send_json({"type": "pong", "ambient": room.ambient.snapshot()})
+                    continue
+                if isinstance(data, dict) and data.get("type") == "ambient.set":
+                    update = AmbientUpdate.model_validate(data)
+                    async with room.lock:
+                        if room.peers.get(peer.user_id) is not peer:
+                            break
+                        if room.ambient.set_playing(update.playing):
+                            hub.event(
+                                room,
+                                peer,
+                                "ambient.started" if update.playing else "ambient.paused",
+                            )
+                        await hub.broadcast(room_id, room)
                     continue
                 update = Update.model_validate(data)
                 presence = update.presence
@@ -193,7 +290,8 @@ def router(hub: Hub, allowed_origins: list[str]) -> APIRouter:
                         await socket.close(code=1008)
                         break
                     if presence.files and any(
-                        len(path) > 512
+                        not path
+                        or len(path) > 512
                         or path.startswith(("/", "\\"))
                         or ".." in path.split("/")
                         or (len(path) > 1 and path[1] == ":")

@@ -16,6 +16,8 @@ import {
   Users,
 } from "lucide-react";
 import App from "./App";
+import { AmbientPlayer } from "./AmbientPlayer";
+import { ConflictRadar } from "./ConflictRadar";
 import {
   api,
   ApiError,
@@ -84,14 +86,16 @@ export default function DesktopApp() {
   }
   if (local)
     return (
-      <>
-        <nav className="local-nav">
-          <button className="button" onClick={() => setLocal(false)}>
-            <ArrowLeft size={16} /> Zpět na hlavní obrazovku
-          </button>
-        </nav>
-        <App />
-      </>
+      <App
+        navigation={
+          <nav className="local-nav" aria-label="Online režim">
+            <button className="button" onClick={() => setLocal(false)}>
+              <ArrowLeft size={16} />
+              {session ? "Zpět do týmového prostoru" : "Přihlásit se online"}
+            </button>
+          </nav>
+        }
+      />
     );
   if (!session)
     return (
@@ -106,7 +110,7 @@ export default function DesktopApp() {
     <div className="collaboration-shell">
       <header className="collab-topbar">
         <button className="wordmark" onClick={() => setRoom(null)}>
-          DiGitA<span>03</span>
+          DiGitA<span>05</span>
         </button>
         <span className="signed-user">{session.user.display_name}</span>
         <button className="button" onClick={() => setLocal(true)}>
@@ -192,7 +196,7 @@ function Login({
     <div className="login-page">
       <section className="login-story">
         <span className="wordmark">
-          DiGitA<span>03</span>
+          DiGitA<span>05</span>
         </span>
         <div className="eyebrow">VÁŠ TÝM. SPOLEČNÝ PROSTOR.</div>
         <h1>
@@ -396,26 +400,36 @@ function Dashboard({
           </p>
         </div>
         <button
-          className="icon-button"
+          className="button"
           aria-label="Obnovit místnosti"
-          disabled={loading}
+          disabled={loading || busy}
           onClick={() => setRevision((n) => n + 1)}
         >
-          <RefreshCw size={18} />
+          <RefreshCw size={18} className={loading ? "spin" : undefined} />
+          {loading ? "Obnovuji…" : "Obnovit místnosti"}
         </button>
       </div>
       <div className="dashboard-actions">
         <button
           className="button primary"
+          disabled={loading || busy}
           onClick={() => setAction(managers.length ? "room" : "team")}
         >
           <Plus size={16} />
           Vytvořit místnost
         </button>
-        <button className="button" onClick={() => setAction("join")}>
+        <button
+          className="button"
+          disabled={loading || busy}
+          onClick={() => setAction("join")}
+        >
           Připojit se přes pozvánku
         </button>
-        <button className="text-button" onClick={() => setAction("team")}>
+        <button
+          className="text-button"
+          disabled={loading || busy}
+          onClick={() => setAction("team")}
+        >
           Vytvořit tým
         </button>
       </div>
@@ -502,7 +516,7 @@ function Dashboard({
       )}
       {loading ? (
         <p role="status">Načítám místnosti…</p>
-      ) : !teams.length ? (
+      ) : !teams.length && !error ? (
         <section className="dashboard-empty">
           <Users size={40} strokeWidth={1} />
           <h2>Váš první společný prostor.</h2>
@@ -565,6 +579,8 @@ function Dashboard({
 }
 
 const eventLabels: Record<string, string> = {
+  "ambient.started": "spustil/a společné prostředí",
+  "ambient.paused": "pozastavil/a společné prostředí",
   "presence.joined": "vstoupil/a do místnosti",
   "presence.left": "opustil/a místnost",
   "git.connected": "zapnul/a sdílení Git stavu",
@@ -572,6 +588,9 @@ const eventLabels: Record<string, string> = {
   "git.working_tree_changed": "aktualizoval/a Git stav",
   "git.branch_changed": "změnil/a větev",
   "git.commit_created": "má jiný poslední commit",
+  "conflict.detected": "zaznamenal nový překryv sdílených změn",
+  "conflict.resolved":
+    "přestal pozorovat některý překryv (změna stavu, sdílení nebo přítomnosti)",
 };
 function RoomWorkspace({
   room,
@@ -603,7 +622,10 @@ function RoomWorkspace({
     let active = true;
     void api<Member[]>(`/teams/${room.team_id}/members`, session.token)
       .then((data) => {
-        if (active) setMembers(data);
+        if (active) {
+          setMembers(data);
+          setMemberError("");
+        }
       })
       .catch((cause) => {
         if (active) setMemberError(message(cause));
@@ -693,6 +715,12 @@ function RoomWorkspace({
           </p>
         )}
       </section>
+      <AmbientPlayer state={live.ambient} onPlaying={live.setPlaying} />
+      <ConflictRadar
+        state={live.state}
+        userId={session.user.id}
+        presence={presence}
+      />
       <div className="room-columns">
         <section className="team-presence">
           <h2>

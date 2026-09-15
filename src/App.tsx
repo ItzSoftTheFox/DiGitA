@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { RepositorySnapshot } from "./repository";
 import { isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -60,9 +60,11 @@ function Mark({ small = false }: { small?: boolean }) {
 export default function App({
   onSnapshot,
   embedded = false,
+  navigation,
 }: {
   onSnapshot?: (value: RepositorySnapshot | null) => void;
   embedded?: boolean;
+  navigation?: ReactNode;
 }) {
   const desktop = isTauri();
   const [path, setPath] = useState<string | null>(null);
@@ -203,7 +205,8 @@ export default function App({
 
       <div className="main-shell">
         <header className="topbar">
-          <div className="breadcrumb">
+          {navigation}
+          <div className="breadcrumb" hidden={!!navigation}>
             <span>Workspace</span>
             <ChevronRight size={12} />
             <strong>Přehled</strong>

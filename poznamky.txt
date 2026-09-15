@@ -1,1 +1,15 @@
-Pridat tlacitko refreshu na dashboard s Prostorama
+[Hotovo] Viditelne tlacitko Obnovit mistnosti na dashboardu s Prostory
+
+Lokalni verze bude moct si otevrit vice slozek s projekty a vlevo si je muze menit
+
+Udelany full controll git repozitare jednoduse UXUI aby uzivatel nemusel resit kod {napr. muze si prepnout branch a historii atd}
+
+Pridani Textovych/Hovorovych kanalu v mistnostech/Tymu
+
+[Hotovo] Navrat do online rezimu v horni liste lokalniho workspace
+
+udelat si pozdeji i stranku pro administraci/dashboard
+
+uzivatel si bude moct personifikovat profil
+
+pridat chybejici UI prvky

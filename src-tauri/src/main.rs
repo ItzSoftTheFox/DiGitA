@@ -10,6 +10,7 @@ async fn read_repository(path: String) -> Result<git_presence::RepositorySnapsho
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![read_repository, load_session, save_session, clear_session])
         .run(tauri::generate_context!())
         .expect("DiGitA se nepodařilo spustit");
