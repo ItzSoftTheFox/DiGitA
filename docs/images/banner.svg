@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="480" viewBox="0 0 1440 480" fill="none">
+  <title>DiGitA — A quieter workspace for better teamwork.</title>
+  <desc>Monochrome DiGitA banner with the app's geometric mark and connected Git branches.</desc>
+  <defs>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" stroke="#202020" stroke-width="1"/></pattern>
+    <linearGradient id="fade"><stop stop-color="#0c0c0c"/><stop offset="1" stop-color="#0c0c0c" stop-opacity="0"/></linearGradient>
+  </defs>
+  <path fill="#0c0c0c" d="M0 0h1440v480H0z"/>
+  <path fill="url(#grid)" d="M800 0h640v480H800z"/>
+  <path fill="url(#fade)" d="M800 0h210v480H800z"/>
+  <path stroke="#383838" d="M.5.5h1439v479H.5z"/>
+  <g transform="translate(76 66) scale(1.4)" stroke="#eeeeea" stroke-width="1.6">
+    <path d="M5 5h16l14 14v16H19L5 21V5Z"/><path d="M14 5v21h21M5 14h21v21"/>
+  </g>
+  <text x="148" y="108" fill="#eeeeea" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700" letter-spacing="-2">DiGitA</text>
+  <text x="80" y="185" fill="#999995" font-family="monospace" font-size="12" letter-spacing="3">YOUR CODE. YOUR TEAM. ONE SPACE.</text>
+  <text x="76" y="252" fill="#eeeeea" font-family="Arial, Helvetica, sans-serif" font-size="52" letter-spacing="-2">A quieter workspace.</text>
+  <text x="76" y="313" fill="#eeeeea" font-family="Arial, Helvetica, sans-serif" font-size="52" letter-spacing="-2">Better teamwork.</text>
+  <path d="M80 362h664" stroke="#383838"/>
+  <g fill="#b3b3ae" font-family="monospace" font-size="12" letter-spacing="1">
+    <text x="80" y="396">LIVE GIT PRESENCE</text><text x="312" y="396">CONFLICT RADAR</text><text x="528" y="396">SHARED AMBIENCE</text>
+  </g>
+  <g stroke="#72726d" stroke-width="2">
+    <path d="M992 108v104c0 42 160 42 160 84v76"/>
+    <path d="M1256 108v104c0 42-104 42-104 84"/>
+    <path d="M992 212v160" stroke="#41413e"/>
+  </g>
+  <g fill="#0c0c0c" stroke="#eeeeea" stroke-width="2">
+    <circle cx="992" cy="108" r="9"/><circle cx="1256" cy="108" r="9"/>
+    <circle cx="992" cy="212" r="9"/><circle cx="1256" cy="212" r="9"/>
+    <circle cx="1152" cy="296" r="12"/><circle cx="1152" cy="372" r="9"/>
+    <circle cx="992" cy="372" r="9" stroke="#72726d"/>
+  </g>
+  <circle cx="1152" cy="296" r="30" stroke="#6b6b66"/>
+  <circle cx="1152" cy="296" r="49" stroke="#363633" stroke-dasharray="3 6"/>
+  <g fill="#999995" font-family="monospace" font-size="11" letter-spacing="2">
+    <text x="960" y="76">LOCAL</text><text x="1224" y="76">TEAM</text>
+    <text x="1083" y="420">STAY IN SYNC</text>
+  </g>
+</svg>

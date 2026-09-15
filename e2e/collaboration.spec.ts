@@ -100,6 +100,9 @@ test("two accounts create a room, share private-by-default Git presence and reco
       owner.getByRole("button", { name: /Společný projekt/ }),
     ).toBeVisible();
     await owner.screenshot({ path: "artifacts/dashboard.png", fullPage: true });
+    await owner
+      .locator(".dashboard")
+      .screenshot({ path: "artifacts/readme-dashboard.png" });
     await owner.getByRole("button", { name: "Pozvat člena" }).click();
     const code = await owner.getByLabel("Vytvořený kód pozvánky").inputValue();
     await register(member, "Petr", `petr-${suffix}@example.com`);
@@ -217,6 +220,10 @@ test("two accounts create a room, share private-by-default Git presence and reco
     await expect(radar).toContainText("src/team.ts");
     await expect(radar).toContainText("Anna");
     await expect(radar).toContainText("Petr (vy)");
+    await radar.screenshot({ path: "artifacts/readme-radar.png" });
+    await member
+      .locator(".ambient-player")
+      .screenshot({ path: "artifacts/readme-ambient.png" });
     await member.screenshot({
       path: "artifacts/conflict-radar.png",
       fullPage: true,

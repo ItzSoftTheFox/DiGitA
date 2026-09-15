@@ -1,10 +1,63 @@
-# DiGitA
+![DiGitA — A quieter workspace. Better teamwork.](docs/images/banner.svg)
 
-**A quieter workspace for better teamwork.**
+<p align="center">
+  A desktop home for your team's work — before the next push.<br />
+  Live Git activity, early conflict warnings, and a shared space to focus.
+</p>
 
-DiGitA is a desktop workspace designed to make local Git activity visible before a push. The project combines repository awareness, early conflict warnings, and a shared ambient environment so developers can stay in sync while working in their own editors.
+<p align="center">
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#getting-started">Get started</a> ·
+  <a href="#roadmap">Roadmap</a> ·
+  <a href="backend/README.md">Backend docs</a>
+</p>
 
-The interface follows a minimal black-and-white design with sharp edges, fine lines, geometric details, and subtle motion. It respects the system's reduced-motion preference.
+<p align="center">
+  <code>Tauri 2</code> &nbsp; <code>React</code> &nbsp; <code>Rust</code> &nbsp;
+  <code>FastAPI</code> &nbsp; <code>PostgreSQL</code>
+</p>
+
+---
+
+| See work as it happens                                                         | Catch overlaps early                                              | Find your focus                                             |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| Share permitted Git metadata with your room, while code stays on your machine. | See when teammates change the same file, before a commit or push. | Listen to a synchronized ambient loop with your own volume. |
+
+## Screenshots
+
+Actual application UI, captured in the browser with demo/test accounts and
+repositories. The interface is currently in Czech. Click any image for full size.
+
+### Your local workspace
+
+Branch, latest commit, and working-tree changes in one view, with search and
+staged/unstaged filters.
+
+[![DiGitA local workspace showing a branch, commit, and filtered Git changes](docs/images/workspace.png)](docs/images/workspace.png)
+
+<details>
+<summary><strong>Explore team rooms, Conflict Radar, and shared ambience</strong></summary>
+
+### Your team's spaces
+
+Create a team, join through an invitation, and pick up work in a project room.
+
+[![Team dashboard with room creation, invitations, refresh, and a project room](docs/images/dashboard.png)](docs/images/dashboard.png)
+
+### A heads-up before the merge
+
+Conflict Radar identifies overlapping file paths and the people working on them.
+It highlights possible risk; it does not claim a Git merge conflict is certain.
+
+[![Conflict Radar showing Anna and Petr changing the same file](docs/images/conflict-radar.png)](docs/images/conflict-radar.png)
+
+### A shared atmosphere, your own volume
+
+Room-wide play/pause with personal listening controls and independent volume.
+
+[![Ambient player with shared pause, personal listening, and a volume slider](docs/images/ambient.png)](docs/images/ambient.png)
+
+</details>
 
 ## Project status
 
@@ -393,6 +446,7 @@ public/audio/           Bundled ambient WAV and its CC0 provenance/license
 scripts/                Reproducible ambient audio generator
 crates/git-presence/    Git inspection library and Rust tests
 e2e/                    Playwright browser tests
+docs/images/            README banner and curated application screenshots
 backend/digita_api/     FastAPI accounts, teams, rooms, invitations, and WebSockets
 backend/migrations/     Alembic database migrations
 backend/tests/          API, WebSocket, radar, ambient, and migration tests
