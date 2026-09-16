@@ -44,9 +44,12 @@ Render's secret environment, never GitHub frontend variables or website code:
 postgresql+psycopg://USER:PASSWORD@HOST/DATABASE?sslmode=verify-full&sslrootcert=system
 ```
 
-Use the actual provider credentials, URL-encode password characters, and use a
-client/libpq version supporting the system trust store (the locked psycopg binary
-includes libpq). The launcher rejects local/default DB URLs and unverified TLS.
+Use the actual provider credentials and URL-encode password characters. For
+`sslrootcert=system`, the backend supplies the explicit Mozilla CA bundle from the
+production dependency `certifi` and enforces `verify-full`. This avoids relying on
+binary libpq/OpenSSL default CA paths matching the hosting operating system. Both
+Alembic and the API use this connection setup. Explicit custom CA file paths are
+preserved. The launcher rejects local/default DB URLs and unverified TLS.
 Migrations run before the API starts. Inspect deployment logs and `/health`.
 
 Registration defaults to disabled. Open it briefly for pilot onboarding and close
@@ -123,3 +126,8 @@ an installer exists before the draft has been tested and published.
 - [Tauri action inputs](https://github.com/tauri-apps/tauri-action)
 - [Render Blueprint specification](https://render.com/docs/blueprint-spec)
 - [Render free-service limits](https://render.com/docs/free)
+
+If deployment logs show IPv4 `certificate verify failed` followed by IPv6
+`Network is unreachable`, resolve the certificate failure first: IPv4 already
+reached the endpoint. Deploy the CA-bundle fix rather than disabling TLS validation.
+See [libpq TLS verification](https://www.postgresql.org/docs/17/libpq-connect.html#LIBPQ-CONNECT-SSLROOTCERT).

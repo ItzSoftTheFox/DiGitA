@@ -13,3 +13,6 @@ udelat si pozdeji i stranku pro administraci/dashboard
 uzivatel si bude moct personifikovat profil
 
 pridat chybejici UI prvky
+
+
+postgresql+psycopg://neondb_owner:npg_8JbTCPK3HuIB@ep-sparkling-butterfly-b1an29sb.c-5.eu-central-1.aws.neon.tech/<DB_NAME>?sslmode=verify-full&sslrootcert=system
