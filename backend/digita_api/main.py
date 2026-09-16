@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import Generator
 from contextlib import asynccontextmanager
@@ -16,7 +17,9 @@ from sqlalchemy.orm import Session
 from . import schemas as s
 from .config import Settings
 from .database import create_database
+from .maintenance import cleanup_expired, lock_writes
 from .models import AuthSession, Invitation, Membership, Room, Team, User, now
+from .quotas import enforce_quota
 from .rate_limit import AuthRateLimit
 from .realtime import Hub, router
 from .request_limits import RequestBodyLimit
@@ -28,6 +31,8 @@ audit = logging.getLogger("digita.security")
 
 def db(request: Request) -> Generator[Session]:
     with request.app.state.sessions() as session:
+        if request.method in {"POST", "PATCH", "DELETE"}:
+            lock_writes(session)
         yield session
 
 
@@ -87,8 +92,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        yield
-        engine.dispose()
+        stop = asyncio.Event()
+
+        async def clean():
+            try:
+                await asyncio.to_thread(cleanup_expired, sessions)
+            except SQLAlchemyError:
+                # Do not include SQL parameters/connection credentials in logs.
+                audit.error("maintenance.cleanup_failed")
+
+        async def maintenance():
+            while not stop.is_set():
+                try:
+                    await asyncio.wait_for(stop.wait(), settings.cleanup_interval_seconds)
+                except TimeoutError:
+                    await clean()
+
+        await clean()
+        task = asyncio.create_task(maintenance())
+        try:
+            yield
+        finally:
+            stop.set()
+            await task
+            engine.dispose()
 
     app = FastAPI(title="DiGitA API", version="0.2.0", lifespan=lifespan)
     app.state.sessions = sessions
@@ -149,6 +176,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def register(body: s.Register, session: DB):
         if not settings.registration_enabled:
             raise HTTPException(403, "Registrace je momentálně uzavřena.")
+        enforce_quota(session, User, settings.max_users, "Kapacita pilotu je naplněna.")
         user = User(
             email=str(body.email),
             display_name=body.display_name,
@@ -175,6 +203,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 AuthSession.user_id == user.id, AuthSession.expires_at <= now()
             )
         )
+        # Allow a fresh login at capacity; revoke the earliest-expiring sessions.
+        existing = session.scalars(
+            select(AuthSession)
+            .where(AuthSession.user_id == user.id)
+            .order_by(AuthSession.expires_at, AuthSession.token_hash)
+        ).all()
+        for old in existing[: max(0, len(existing) - settings.max_user_sessions + 1)]:
+            session.delete(old)
         session.add(AuthSession(token_hash=digest(token), user_id=user.id, expires_at=expiry))
         session.commit()
         audit.info("auth.login_succeeded")
@@ -193,6 +229,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/teams", response_model=s.TeamOut, status_code=201)
     def create_team(body: s.Named, auth: Auth, session: DB):
+        enforce_quota(
+            session,
+            Membership,
+            settings.max_owned_teams,
+            "Dosáhli jste limitu vlastních týmů.",
+            Membership.user_id == auth.user_id,
+            Membership.role == "owner",
+        )
+        enforce_quota(
+            session,
+            Membership,
+            settings.max_joined_teams,
+            "Dosáhli jste limitu členství v týmech.",
+            Membership.user_id == auth.user_id,
+        )
         team = Team(name=body.name)
         session.add(team)
         session.flush()
@@ -250,6 +301,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/teams/{team_id}/rooms", response_model=s.RoomOut, status_code=201)
     def create_room(team_id: str, body: s.Named, auth: Auth, session: DB):
         manager(session, team_id, auth.user_id)
+        enforce_quota(
+            session,
+            Room,
+            settings.max_team_rooms,
+            "Tým dosáhl limitu místností.",
+            Room.team_id == team_id,
+        )
         room = Room(team_id=team_id, name=body.name)
         session.add(room)
         commit(session, "Místnost s tímto názvem již v týmu existuje.")
@@ -273,6 +331,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/teams/{team_id}/invitations", response_model=s.InviteOut, status_code=201)
     def invite(team_id: str, auth: Auth, session: DB):
         manager(session, team_id, auth.user_id)
+        session.execute(
+            delete(Invitation).where(Invitation.team_id == team_id, Invitation.expires_at <= now())
+        )
+        enforce_quota(
+            session,
+            Invitation,
+            settings.max_team_invitations,
+            "Tým dosáhl limitu platných pozvánek.",
+            Invitation.team_id == team_id,
+        )
         token = new_token()
         expiry = now() + timedelta(hours=settings.invite_hours)
         invitation = Invitation(team_id=team_id, token_hash=digest(token), expires_at=expiry)
@@ -304,6 +372,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if session.get(Membership, (team_id, auth.user_id)):
             session.rollback()
             raise HTTPException(409, "Již jste členem tohoto týmu.")
+        enforce_quota(
+            session,
+            Membership,
+            settings.max_joined_teams,
+            "Dosáhli jste limitu členství v týmech.",
+            Membership.user_id == auth.user_id,
+        )
+        enforce_quota(
+            session,
+            Membership,
+            settings.max_team_members,
+            "Tým dosáhl limitu členů.",
+            Membership.team_id == team_id,
+        )
         session.add(Membership(team_id=team_id, user_id=auth.user_id, role="member"))
         commit(session, "Již jste členem tohoto týmu.")
         return session.get(Team, team_id)

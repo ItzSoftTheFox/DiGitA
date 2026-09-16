@@ -97,8 +97,8 @@ Validation errors omit submitted values, and responses use `Cache-Control: no-st
 The rate limit is an in-memory, per-process fixed window and resets on restart.
 The local launch command disables forwarded proxy headers. Public deployments
 need TLS, trusted proxy configuration, and a shared rate limiter before scaling
-to multiple workers. Email verification, password reset, token refresh, and
-scheduled cleanup of expired sessions/invitations are not part of this phase.
+to multiple workers. Email verification, password reset and token refresh are not implemented.
+Expired sessions/invitations are cleaned on startup and periodically (see pilot quotas below).
 Expired tokens cannot authenticate; expired sessions for a user are removed at
 their next successful login.
 
@@ -238,3 +238,57 @@ Set `DIGITA_REGISTRATION_ENABLED=false` to close onboarding for a private pilot.
 Configure the `digita.security` logger at INFO to collect the fixed auth event names;
 it never includes submitted credentials or user data. Deployment access logs need
 separate redaction and retention configuration.
+
+## Pilot quotas and expiry cleanup
+
+Limits apply server-side and can be changed through environment variables:
+
+| Variable | Default | Scope |
+| --- | ---: | --- |
+| `DIGITA_MAX_USERS` | 50 | Total registered accounts |
+| `DIGITA_MAX_OWNED_TEAMS` | 3 | Teams owned by one user |
+| `DIGITA_MAX_JOINED_TEAMS` | 5 | All memberships per user, including owned teams |
+| `DIGITA_MAX_TEAM_MEMBERS` | 10 | Members per team, including the owner |
+| `DIGITA_MAX_TEAM_ROOMS` | 5 | Rooms per team, shared across all admins |
+| `DIGITA_MAX_TEAM_INVITATIONS` | 10 | Unexpired invitations per team |
+| `DIGITA_MAX_USER_SESSIONS` | 5 | Unexpired sessions per user |
+| `DIGITA_CLEANUP_INTERVAL_SECONDS` | 3600 | Interval between expiry cleanup runs |
+
+Capacity errors return HTTP 409 with a Czech explanation already displayed by the
+frontend. Failed joins do not consume invitations. Leaving/removing a member and
+revoking/consuming/expiring an invitation free the corresponding capacity.
+At the session limit, a successful new login revokes the session with the earliest
+expiry (normally the oldest login); wrong-password attempts cannot revoke sessions.
+Lowering limits never deletes users, teams, rooms or memberships. It blocks new
+allocations until usage drops; existing excess sessions are trimmed on next login.
+Room/team deletion is not implemented, so their capacity cannot yet be freed in the UI.
+
+All HTTP mutations and cleanup share a transaction-scoped database write lock
+(PostgreSQL advisory lock; SQLite BEGIN IMMEDIATE). Counting and allocation are
+serialized, including requests from separate API instances. This intentionally
+trades write throughput for simple, reliable pilot limits. Password checks also
+run under this lock; keep the existing auth rate limit and edge protections.
+Do not bypass these writers with other applications or manual inserts expecting
+quotas to apply. The API still requires one worker for live room state/rate limits.
+No schema migration is required.
+
+Expired sessions and invitations are removed on startup and every hour by default,
+including those belonging to inactive users. Shutdown waits for an ongoing cleanup.
+A database failure logs only `maintenance.cleanup_failed` and retries at the next
+interval; configure an alert for that event. Sleeping free-tier instances cannot
+run background jobs; startup catches up after waking. Migrations must exist first.
+
+Manual inspection from `backend/` (uses the configured database):
+
+```sh
+uv run python -m digita_api.maintenance          # counts only; no deletion
+uv run python -m digita_api.maintenance --apply  # deletes expired records only
+```
+
+The command prints counts, never tokens or personal data. Repeating cleanup is safe.
+No real application database was cleaned during implementation; test data was
+cleaned in disposable SQLite/PostgreSQL databases. Apply production cleanup by
+starting the updated service or running the explicit command above.
+
+Quota/cleanup validation: 78 tests passed on SQLite and PostgreSQL 18.6 (UTF-8).
+CI also runs the backend suite against PostgreSQL 17, matching Compose.

@@ -1,4 +1,4 @@
-name: Web security
+name: Desktop and API security
 on:
   pull_request:
   push:
@@ -34,7 +34,33 @@ jobs:
       - run: uv run --project backend ruff format --check backend
       - run: uv run pytest -q
         working-directory: backend
+      - run: node --test scripts/prepare-release.test.mjs
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e -- --workers=1 --timeout=90000
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      db:
+        image: postgres:17
+        env:
+          POSTGRES_USER: digita
+          POSTGRES_DB: digita_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U digita -d digita_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: uv sync --locked --project backend
+      - run: uv run pytest -q
+        working-directory: backend
+        env:
+          DIGITA_TEST_DATABASE_URL: postgresql+psycopg://digita@127.0.0.1:5432/digita_test

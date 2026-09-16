@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: digita-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: uv sync --locked --no-dev
+    startCommand: .venv/bin/python -m digita_api.deploy
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.12
+      - key: DIGITA_DATABASE_URL
+        sync: false
+      - key: DIGITA_REGISTRATION_ENABLED
+        value: 'false'
+      - key: DIGITA_ALLOWED_ORIGINS
+        value: '["tauri://localhost","http://tauri.localhost","https://tauri.localhost"]'
+      - key: DIGITA_MAX_USERS
+        value: '50'

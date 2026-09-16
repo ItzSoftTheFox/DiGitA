@@ -20,7 +20,7 @@ Provider ani placená služba se v rámci kontroly nepřipojovaly.
 | Identita | Argon2id; sjednocená chyba pro neznámý účet/chybné heslo; společný limit login/register. `test_api.py`, `test_rate_limit.py`. | MFA, ověření e-mailu, reset hesla nejsou implementované. Registrace prozrazuje existenci e-mailu přes 409. |
 | Oprávnění | Členství kontrolováno pro HTTP i WS; cizí tým vrací 404; správu rolí provádí vlastník. Revokace se kontroluje také před WS broadcastem. | Všechny místnosti jsou dostupné celému týmu; soukromé místnosti nejsou součástí modelu. |
 | Relace | Náhodné 256bit bearer tokeny; v DB pouze SHA-256; expirace a okamžité HTTP odhlášení. Web token nepersistuje do browser storage. | Chybí přehled/odvolání všech relací; idle WS revokace se kontroluje periodicky. |
-| Vstupy | Pydantic omezuje délky a zakazuje extra pole; SQLAlchemy používá parametry. Nové HTTP limity před parsováním JSON. | Celkové DB kvóty a velikost odpovědí/listování nejsou omezené. |
+| Vstupy | Pydantic omezuje délky a zakazuje extra pole; SQLAlchemy používá parametry. Nové HTTP limity před parsováním JSON. | DB kvóty doplněny následnou úpravou níže; seznamy nemají stránkování. |
 | XSS | React vykresluje hodnoty jako text; regresní test škodlivého názvu/cesty v Conflict Radar. V kontrolovaném src není `dangerouslySetInnerHTML` ani eval. | Webovou CSP musí nastavit hosting; Tauri CSP se na web nevztahuje. |
 | Upload | Aplikace nemá endpoint pro upload souborů; sdílí pouze metadata. | Antivirový scanner teď nemá vstup, na kterém by pracoval. Přehodnotit při zavedení uploadu. |
 | API a WS | Bearer autorizace všech soukromých HTTP tras, přesné CORS/WS origins; WS limity zpráv a velikosti, kontrola privátních polí. | Edge limit souběhu, handshake a provozu; žádný distribuovaný rate limiter. |
@@ -60,8 +60,8 @@ Provider ani placená služba se v rámci kontroly nepřipojovaly.
    Bez ověření e-mailu jej nepoužívat jako důkaz identity nebo příslušnosti k organizaci.
    U provider účtů s administrativním přístupem zapnout MFA; aplikační MFA zhodnotit
    před rozšířením pilotu, nejde o již existující funkci aplikace.
-5. Stanovit a vynutit kvóty účtů, týmů, místností, pozvánek a aktivních relací;
-   přidat úklid expirovaných záznamů a limit souběžných WS spojení na účet/IP.
+5. Nastavit pilotní kvóty podle kapacity providera (implementovány následnou úpravou
+   níže včetně úklidu expirací). Doplnit limit souběžných WS spojení na účet/IP.
    Per-minute limiter sám nezastaví postupné zaplnění free-tier databáze
    ani distribuované zahlcení. Nastavit dostupné hard limity/rozpočtové alarmy providera.
 6. Nakonfigurovat bezpečné logy a retenci, monitoring 401/403/429/5xx a kapacity.
@@ -107,3 +107,17 @@ klienta/AnyIO. PostgreSQL se v tomto běhu netestovalo.
 Prohlížeč: všechny 3 E2E testy prošly sériově s limitem 90 sekund. První paralelní
 běh měl timeout při screenshotu; spolupráce účtů prošla v obou bězích. CI proto
 spouští E2E sériově. Secret hook proti zkontrolované baseline prošel.
+
+## Následná úprava: kvóty a úklid pilotu
+
+Implementován limit 50 účtů, 3 vlastněných / 5 celkových týmů na uživatele,
+10 členů / 5 místností / 10 platných pozvánek na tým a 5 relací na uživatele.
+Konfigurace a chování při překročení jsou v backend/README.md. Vytváření dat
+se serializuje databázovým zámkem; souběžné požadavky nemohou překročit kvótu.
+Expirace se uklízejí při startu, každou hodinu a volitelně samostatným CLI.
+Aktivní uživatelská data se automaticky nemažou. Infrastrukturní ochrany a
+WS limity před autentizací z původního auditu zůstávají otevřené.
+
+Validace následné úpravy: 78 testů na SQLite a 78 na izolovaném PostgreSQL 18.6
+(UTF-8), Ruff a kontrola diffu prošly. CI nově opakuje backendovou sadu také
+na PostgreSQL 17 podle vývojového Compose; GitHub workflow zde nebyl spuštěn.

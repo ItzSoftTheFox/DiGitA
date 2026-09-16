@@ -59,3 +59,7 @@ __pycache__/
 .ruff_cache/
 *.pyc
 *.db
+
+# Generated desktop release configuration and checksums
+src-tauri/tauri.release.generated.json
+/SHA256SUMS.txt

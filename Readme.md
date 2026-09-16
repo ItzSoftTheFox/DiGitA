@@ -494,3 +494,9 @@ has been added yet; choose the application license before public distribution.
 [Bezpečnostní kontrola a podmínky nasazení](docs/security-review.md) obsahuje
 výsledky code review, regresních testů a kontroly závislostí před napojením providerů.
 Automatické kontroly jsou v `.github/workflows/security.yml`.
+
+### Desktopová distribuce
+
+Aplikace se distribuuje jako React + Tauri desktop. Veřejný web slouží pouze
+k prezentaci a stažení; backend zajišťuje účty a spolupráci. Postup pro Windows, macOS a Linux
+instalátory, GitHub Releases a nasazení API je v [desktop-release.md](docs/desktop-release.md).
