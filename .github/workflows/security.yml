@@ -1,0 +1,40 @@
+name: Web security
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: uv sync --locked --project backend
+      - run: npm audit --audit-level=low
+      - run: uv tool run pip-audit --path backend/.venv/lib/python3.12/site-packages --progress-spinner off
+      - name: Scan tracked files for new secrets
+        run: git ls-files -z | xargs -0 uv tool run --from detect-secrets==1.5.0 detect-secrets-hook --baseline .secrets.baseline
+      - run: uv run --project backend ruff check backend
+      - run: uv run --project backend ruff format --check backend
+      - run: uv run pytest -q
+        working-directory: backend
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --workers=1 --timeout=90000

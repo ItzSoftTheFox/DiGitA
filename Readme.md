@@ -488,3 +488,9 @@ has been added yet; choose the application license before public distribution.
 - Git file lists above 500 entries or the payload budget share counts only. Project identity is confirmed by the user, not inferred from Git remote addresses.
 - A changed HEAD is shown as a changed last commit; it does not prove a new commit was created rather than checked out.
 - The backend is configured for local development; public deployment and multi-worker hardening remain part of release readiness. See the backend README for current limits.
+
+### Bezpečnost webového pilotu
+
+[Bezpečnostní kontrola a podmínky nasazení](docs/security-review.md) obsahuje
+výsledky code review, regresních testů a kontroly závislostí před napojením providerů.
+Automatické kontroly jsou v `.github/workflows/security.yml`.

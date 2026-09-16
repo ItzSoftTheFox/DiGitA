@@ -162,3 +162,19 @@ it("keeps radar usable after notification permission denial", async () => {
   expect(screen.getByText("private.ts")).toBeTruthy();
   expect(notification.send).not.toHaveBeenCalled();
 });
+
+it("renders attacker-controlled names and paths as text, never markup", () => {
+  const payload = '<img src=x onerror="alert(1)">';
+  const data = state([{ ...warning, path: payload }]);
+  data.members[1].display_name = payload;
+  const shared = { ...presence, files: [payload] };
+  data.members.forEach((member) => {
+    member.presence = shared;
+  });
+  const view = render(
+    <ConflictRadar state={data} userId="me" presence={shared} />,
+  );
+  expect(view.container.textContent).toContain(payload);
+  expect(view.container.querySelector("img")).toBeNull();
+  expect(view.container.querySelector("[onerror]")).toBeNull();
+});

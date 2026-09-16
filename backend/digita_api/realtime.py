@@ -293,7 +293,8 @@ def router(hub: Hub, allowed_origins: list[str]) -> APIRouter:
                         not path
                         or len(path) > 512
                         or path.startswith(("/", "\\"))
-                        or ".." in path.split("/")
+                        or ".." in path.replace("\\", "/").split("/")
+                        or any(ord(char) < 32 or ord(char) == 127 for char in path)
                         or (len(path) > 1 and path[1] == ":")
                         for path in presence.files
                     ):

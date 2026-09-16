@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Generator
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -18,9 +19,11 @@ from .database import create_database
 from .models import AuthSession, Invitation, Membership, Room, Team, User, now
 from .rate_limit import AuthRateLimit
 from .realtime import Hub, router
+from .request_limits import RequestBodyLimit
 from .security import digest, dummy_hash, new_token, passwords
 
 bearer = HTTPBearer(auto_error=False)
+audit = logging.getLogger("digita.security")
 
 
 def db(request: Request) -> Generator[Session]:
@@ -89,6 +92,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="DiGitA API", version="0.2.0", lifespan=lifespan)
     app.state.sessions = sessions
+    app.add_middleware(RequestBodyLimit, max_bytes=settings.max_request_bytes)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
@@ -97,6 +101,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.include_router(router(Hub(sessions), settings.allowed_origins))
     auth_limit = AuthRateLimit(settings.auth_requests_per_minute)
+    api_limit = AuthRateLimit(settings.api_requests_per_minute)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, error: RequestValidationError):
@@ -113,11 +118,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def private_responses(request: Request, call_next):
         address = request.client.host if request.client else "unknown"
-        if (
+        if not api_limit.allow(address) or (
             request.method == "POST"
             and request.url.path.rstrip("/") in {"/auth/register", "/auth/login"}
             and not auth_limit.allow(address)
         ):
+            audit.warning("request.rate_limited")
             response = JSONResponse(
                 status_code=429,
                 content={"detail": "Příliš mnoho pokusů. Zkuste to za minutu."},
@@ -127,6 +133,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Frame-Options"] = "DENY"
         return response
 
     @app.get("/health")
@@ -139,6 +147,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/auth/register", response_model=s.UserOut, status_code=201)
     def register(body: s.Register, session: DB):
+        if not settings.registration_enabled:
+            raise HTTPException(403, "Registrace je momentálně uzavřena.")
         user = User(
             email=str(body.email),
             display_name=body.display_name,
@@ -146,6 +156,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         session.add(user)
         commit(session, "Účet s tímto e-mailem již existuje.")
+        audit.info("auth.registered")
         return user
 
     @app.post("/auth/login", response_model=s.TokenOut)
@@ -153,6 +164,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         user = session.scalar(select(User).where(User.email == str(body.email)))
         valid = passwords.verify(body.password, user.password_hash if user else dummy_hash)
         if not valid or user is None:
+            audit.warning("auth.login_failed")
             raise HTTPException(
                 401, "Nesprávný e-mail nebo heslo.", headers={"WWW-Authenticate": "Bearer"}
             )
@@ -165,12 +177,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         session.add(AuthSession(token_hash=digest(token), user_id=user.id, expires_at=expiry))
         session.commit()
+        audit.info("auth.login_succeeded")
         return s.TokenOut(access_token=token, expires_at=expiry)
 
     @app.post("/auth/logout", status_code=204)
     def logout(auth: Auth, session: DB):
         session.delete(auth)
         session.commit()
+        audit.info("auth.logged_out")
         return Response(status_code=204)
 
     @app.get("/auth/me", response_model=s.UserOut)

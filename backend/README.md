@@ -226,3 +226,15 @@ To change the schema, edit the models and run `uv run alembic revision
 Implementation references: [FastAPI password hashing](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/),
 [SQLAlchemy transactions](https://docs.sqlalchemy.org/en/20/orm/session_basics.html),
 and [Alembic migrations](https://alembic.sqlalchemy.org/en/latest/tutorial.html).
+
+## Web pilot security review
+
+See [the web security review](../docs/security-review.md) for tested controls,
+remaining deployment requirements, and the CI workflow. HTTP requests now have
+an additional 120/minute/IP process-local limit (`DIGITA_API_REQUESTS_PER_MINUTE`),
+a 16 KiB body limit (`DIGITA_MAX_REQUEST_BYTES`) and a 10-second body read timeout.
+Health checks count against the HTTP budget. The 20/minute auth limit still applies.
+Set `DIGITA_REGISTRATION_ENABLED=false` to close onboarding for a private pilot.
+Configure the `digita.security` logger at INFO to collect the fixed auth event names;
+it never includes submitted credentials or user data. Deployment access logs need
+separate redaction and retention configuration.

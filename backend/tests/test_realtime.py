@@ -144,6 +144,8 @@ def test_live_access_is_revoked_before_next_broadcast(client, account, revoke):
         {"repository_id": "another-room"},
         {"files": ["/home/private/file"]},
         {"files": ["../secret"]},
+        {"files": ["folder\\..\\secret"]},
+        {"files": ["src/\u0000secret"]},
         {"source_code": "do not accept"},
         {"files": ["x"] * 501},
     ],
