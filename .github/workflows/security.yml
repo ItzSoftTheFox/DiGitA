@@ -1,10 +1,6 @@
 name: Desktop and API security
+# Paused at owner request: no hosted runners until billing is resolved.
 on:
-  pull_request:
-  push:
-    branches: [main, master]
-  schedule:
-    - cron: '23 6 * * 1'
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,6 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   web:
+    if: ${{ false }} # Explicit pause; manual dispatch also skips this job.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -40,6 +37,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e -- --workers=1 --timeout=90000
   postgres:
+    if: ${{ false }} # Explicit pause; manual dispatch also skips this job.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:

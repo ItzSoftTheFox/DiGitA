@@ -1,7 +1,6 @@
 name: Desktop installers
+# Paused at owner request: no hosted runners until billing is resolved.
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,6 +9,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   installers:
+    if: ${{ false }} # Explicit pause; manual dispatch also skips this job.
     # Serialize uploads to avoid concurrent creation/update of the same draft.
     strategy:
       fail-fast: false

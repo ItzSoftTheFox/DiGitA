@@ -20,7 +20,8 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:8000 ws://127.0.0.1:8000; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:8000 ws://127.0.0.1:8000; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'",
+      "devCsp": "default-src 'self'; connect-src 'self' https://digita-hvse.onrender.com wss://digita-hvse.onrender.com http://127.0.0.1:1420 ws://127.0.0.1:1420 ipc: http://ipc.localhost http://127.0.0.1:8000 ws://127.0.0.1:8000; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {

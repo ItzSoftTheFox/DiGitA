@@ -1,0 +1,11 @@
+import { readFileSync, writeFileSync, copyFileSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const archive = '../docs/downloads/digita-0.1.0-1-x86_64.pkg.tar.zst';
+const digest = createHash('sha256').update(readFileSync(archive)).digest('hex');
+const recorded = readFileSync(`${archive}.sha256`, 'utf8').split(/\s/)[0];
+if (digest !== recorded) throw new Error('Download checksum mismatch');
+const size = `${(statSync(archive).size / 1024 / 1024).toFixed(1)} MiB`;
+writeFileSync('../docs/index.html', readFileSync('index.html','utf8').replace('{{package_size}}', size));
+copyFileSync('site.js', '../docs/assets/site.js');
+writeFileSync('../docs/.nojekyll', '');
+console.log(`Built static site; verified download (${size}).`);

@@ -1,5 +1,16 @@
 # Desktop pilot: backend and releases
 
+Current scope: Linux first, primarily Arch x86_64. Use the [local Arch package
+build and installation guide](arch-linux.md). Windows/macOS distribution is deferred;
+the multi-platform workflow below is retained for later use.
+
+**Hosted CI is paused because of an unexpected billing charge.** Both workflow
+files now have manual triggers only and unconditional job skips. Publishing these
+changes prevents new jobs from allocating runners, but does not cancel existing
+runs or change older tags. Disable Actions in repository settings and cancel active
+runs on GitHub immediately. Do not rerun older workflows until billing is resolved.
+The release procedure below describes the intended flow after an explicit re-enable.
+
 DiGitA is a React interface bundled inside a Tauri desktop application. The desktop
 reads local Git repositories and connects to a hosted FastAPI/PostgreSQL service.
 The public website only presents the product and links to installers. It must not
@@ -31,8 +42,8 @@ Linux ARM and Windows ARM are not included.
 
 No provider resources or GitHub releases have been created by preparing these files.
 Installers must still be built on the hosted runners and tested on each supported
-system. Automatic updates, Windows signing, the download website and admin dashboard
-are not implemented by this change. Apple signing is wired but needs credentials.
+system. Automatic updates, Windows signing and the admin dashboard are not implemented.
+The download website is now prepared separately in `website/` with output in `docs/`. Apple signing is wired but needs credentials.
 
 ## 1. Deploy backend and database
 
@@ -112,13 +123,16 @@ on Apple Silicon and still requires an Intel-machine installation test.
 
 ## 3. Download website
 
-Publish a separate static landing page on Cloudflare Pages (not the app's dist/).
-For the pilot link to the published version's GitHub release page or its exact
-installer asset. `/releases/latest` does not select prereleases; draft releases are
-not public. The repository must be public for anonymous asset downloads, or use
-a separate public distribution repository and configure the release workflow.
-Do not put GitHub access tokens into the website. No download button should claim
-an installer exists before the draft has been tested and published.
+The separate HTML + Tailwind CSS landing page is built locally into `docs/`.
+Publish it using GitHub Pages, **Deploy from a branch → main → /docs**.
+See [website setup](../website/README.md) for build and publishing steps.
+It includes the current Arch pilot package and checksum directly in
+`docs/downloads/`; no GitHub release has to exist for that download to work.
+The site clearly labels the package as unsigned and not yet clean-install tested.
+
+For future releases, replace the download with the exact published GitHub asset.
+`/releases/latest` does not select prereleases; draft releases are not public.
+Never put GitHub tokens or database credentials into the website.
 
 ## References
 

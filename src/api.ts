@@ -68,6 +68,7 @@ export const credentials = {
       : Promise.resolve(null),
   save: async (token: string) => {
     if (isTauri()) {
+      localStorage.removeItem(rememberKey);
       await invoke<void>("save_session", { server: API_URL, token });
       localStorage.setItem(rememberKey, "yes");
     }

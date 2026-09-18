@@ -1,0 +1,19 @@
+# Local binary packaging recipe. scripts/build-arch.sh stages and hashes the inputs.
+pkgname=digita
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Desktop Git workspace and team collaboration'
+arch=('x86_64')
+url='https://github.com/ItzSoftTheFox/DiGitA'
+depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3' 'openssl' 'git' 'gcc-libs' 'glibc' 'libsoup3' 'dbus' 'gst-plugins-good')
+optdepends=('gnome-keyring: remember login through a Secret Service provider')
+options=('!debug')
+source=('digita' 'app.digita.desktop.desktop' 'digita.png')
+# Replaced with hashes of the freshly built local inputs, never remote downloads.
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+  install -Dm755 "$srcdir/digita" "$pkgdir/usr/bin/digita"
+  install -Dm644 "$srcdir/app.digita.desktop.desktop" "$pkgdir/usr/share/applications/app.digita.desktop.desktop"
+  install -Dm644 "$srcdir/digita.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/digita.png"
+}

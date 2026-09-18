@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=DiGitA
+Comment=Git workspace and team collaboration
+Exec=digita
+Icon=digita
+Terminal=false
+Categories=Development;RevisionControl;
+StartupWMClass=digita

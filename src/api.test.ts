@@ -58,3 +58,13 @@ describe("session storage", () => {
     expect(stored.size).toBe(0);
   });
 });
+
+it("disables restoration of an older credential when saving a new session fails", async () => {
+  mocks.invoke.mockResolvedValue(undefined);
+  await credentials.save("old-test-token");
+  mocks.invoke.mockRejectedValue(new Error("locked"));
+  await expect(credentials.save("new-test-token")).rejects.toThrow("locked");
+  mocks.invoke.mockClear();
+  expect(await credentials.read()).toBeNull();
+  expect(mocks.invoke).not.toHaveBeenCalled();
+});

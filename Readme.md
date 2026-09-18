@@ -500,3 +500,15 @@ Automatické kontroly jsou v `.github/workflows/security.yml`.
 Aplikace se distribuuje jako React + Tauri desktop. Veřejný web slouží pouze
 k prezentaci a stažení; backend zajišťuje účty a spolupráci. Postup pro Windows, macOS a Linux
 instalátory, GitHub Releases a nasazení API je v [desktop-release.md](docs/desktop-release.md).
+
+### Stažitelný balíček pro Arch Linux
+
+Aktuální priorita je **Arch Linux x86_64**. Lokální sestavení pomocí
+`bash scripts/build-arch.sh` vytvoří pacman balíček bez GitHub Actions.
+[Postup sestavení, instalace a distribuce](docs/arch-linux.md).
+
+### Prezentační web / GitHub Pages
+
+Samostatný web v HTML + Tailwind CSS obsahuje ukázky aplikace, FAQ a stažení
+Arch pilotu. Zdroj je v `website/`, hotový web v `docs/`.
+[Lokální náhled, úpravy a zapnutí GitHub Pages](website/README.md).

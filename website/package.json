@@ -1,0 +1,12 @@
+{
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  },
+  "name": "digita-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tailwindcss -i styles.css -o ../docs/assets/site.css --minify && node build.mjs"
+  }
+}

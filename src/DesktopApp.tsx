@@ -31,7 +31,7 @@ import { sharedPresence, useRoom, type Sharing } from "./useRoom";
 import type { RepositorySnapshot } from "./repository";
 import "./collaboration.css";
 
-type Session = { token: string; user: User };
+type Session = { token: string; user: User; storageNotice?: string };
 type TeamView = Team & { rooms: Room[]; role: Member["role"] };
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -124,6 +124,11 @@ export default function DesktopApp() {
           <LogOut size={18} />
         </button>
       </header>
+      {session.storageNotice && (
+        <p className="form-error" role="status">
+          {session.storageNotice}
+        </p>
+      )}
       {room ? (
         <RoomWorkspace
           key={room.id}
@@ -182,9 +187,17 @@ function Login({
       );
       token = result.access_token;
       const user = await api<User>("/auth/me", token);
-      if (remember) await credentials.save(token);
-      else if (isTauri()) await credentials.clear().catch(() => {});
-      onSession({ token, user });
+      let storageNotice: string | undefined;
+      if (remember) {
+        try {
+          await credentials.save(token);
+        } catch {
+          await credentials.clear().catch(() => {});
+          storageNotice =
+            "Přihlášení se nepodařilo zapamatovat. Jste přihlášeni pro toto spuštění; po zavření aplikace se přihlaste znovu.";
+        }
+      } else if (isTauri()) await credentials.clear().catch(() => {});
+      onSession({ token, user, storageNotice });
     } catch (cause) {
       if (token) void api("/auth/logout", token, "POST").catch(() => {});
       setError(message(cause));

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0b0b">
+  <meta name="description" content="DiGitA je desktopový prostor pro váš Git a tým. Lokální změny, živá spolupráce a včasná upozornění na překryvy souborů. Nyní pro Arch Linux.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta property="og:title" content="DiGitA — Méně šumu. Více společné práce.">
+  <meta property="og:description" content="Váš Git. Váš tým. Jeden klidný prostor. Desktopová aplikace pro Arch Linux.">
+  <meta property="og:type" content="website">
+  <title>DiGitA — Prostor pro vaši práci.</title>
+  <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/site.css">
+  <script src="./assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Přejít na obsah</a>
+<header class="site-header">
+  <nav class="page-width flex min-h-24 items-center justify-between gap-6" aria-label="Hlavní navigace">
+    <a class="brand" href="#" aria-label="DiGitA — úvod">
+      <svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M5 5h16l14 14v16H19L5 21V5Z M14 5v21h21M5 14h21v21" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>DiGitA<sup>01</sup></span>
+    </a>
+    <div class="hidden items-center gap-9 text-sm md:flex">
+      <a class="nav-link" href="#funkce">Co umí</a><a class="nav-link" href="#uvnitr">Uvnitř aplikace</a><a class="nav-link" href="#otazky">Otázky</a>
+    </div>
+    <a class="nav-download" href="#stahnout">Získat DiGitA <span aria-hidden="true">↗</span></a>
+  </nav>
+</header>
+<main id="main">
+  <section class="hero page-width" aria-labelledby="hero-title">
+    <div class="hero-top mono flex items-center justify-between gap-4"><span><i class="status-dot" aria-hidden="true"></i> DESKTOPOVÝ PROSTOR PRO VÝVOJÁŘE</span><span class="hidden sm:inline">LOCAL FIRST / TEAM TOGETHER</span></div>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow entrance">VÁŠ GIT. VÁŠ TÝM. VÁŠ KLID.</p>
+        <h1 id="hero-title" class="entrance">Dobrá práce<br>potřebuje<br><span class="quiet-word">svůj prostor.</span></h1>
+        <p class="hero-description entrance">Mějte přehled o svém kódu i o lidech, se kterými ho tvoříte. Lokální Git a živá spolupráce v jednom desktopovém okně.</p>
+        <div class="flex flex-wrap items-center gap-x-8 gap-y-5 entrance"><a class="button-primary" href="#stahnout">Stáhnout pro Linux <span aria-hidden="true">↗</span></a><a class="text-link" href="#uvnitr">Nahlédnout dovnitř <span aria-hidden="true">↓</span></a></div>
+        <p class="hero-footnote mono entrance">ARCH LINUX x86_64 <span>·</span> VÝVOJOVÁ VERZE 0.1.0</p>
+      </div>
+      <div class="hero-art entrance" aria-hidden="true">
+        <div class="art-grid"></div><span class="cross cross-a">+</span><span class="cross cross-b">+</span>
+        <span class="art-coordinate mono">WORKSPACE / 01</span>
+        <div class="orbit orbit-outer"></div><div class="orbit orbit-inner"></div>
+        <div class="core-mark"><svg viewBox="0 0 120 120" fill="none"><path d="M15 15h48l42 42v48H57L15 63V15Z M42 15v63h63M15 42h63v63" stroke="currentColor" stroke-width="1.2"/><path d="M63 15v48h42M15 63h48v42M42 42l36 36" stroke="currentColor" stroke-width=".6" opacity=".3"/></svg></div>
+        <div class="floating-note note-a"><span class="note-icon">⑂</span><div><span class="mono note-label">AKTUÁLNÍ VĚTEV</span><strong>feature / next-idea</strong></div><i class="status-dot"></i></div>
+        <div class="floating-note note-b"><span class="note-icon">⌘</span><div><span class="mono note-label">SPOLEČNÝ PROSTOR</span><strong>Každý na stejné vlně.</strong></div><div class="avatars"><span>A</span><span>M</span></div></div>
+        <div class="art-bottom mono"><span>YOUR CODE. YOUR SPACE.</span><span>+ 50° 05′</span></div>
+      </div>
+    </div>
+    <div class="hero-bottom mono"><span>POSTAVENO PRO SOUSTŘEDĚNÍ</span><span>PROZKOUMAT <span class="scroll-arrow" aria-hidden="true">↓</span></span></div>
+  </section>
+
+  <section id="funkce" class="section-block page-width" aria-labelledby="features-title">
+    <div class="section-heading reveal"><div><p class="eyebrow">01 / MÉNĚ PŘEPÍNÁNÍ. VÍCE KONTEXTU.</p><h2 id="features-title">Váš workflow.<br><span class="text-dim">Konečně pohromadě.</span></h2></div><p>Od první lokální změny po společnou práci.<br>To podstatné vidíte dřív, než přijde další push.</p></div>
+    <div class="feature-grid">
+      <article class="feature-card reveal"><div class="feature-top"><span class="feature-glyph" aria-hidden="true">⑂</span><span class="mono">01</span></div><h3>Začněte u svého kódu.</h3><p>Větev, poslední commit a změněné soubory. Připravené i nepřipravené změny v přehledu, který nezdržuje.</p><div class="mini-file mono"><span><i></i> workspace.tsx</span><span>M</span></div><div class="mini-file mono muted-file"><span><i></i> next-idea.ts</span><span>+</span></div></article>
+      <article class="feature-card reveal"><div class="feature-top"><span class="feature-glyph" aria-hidden="true">◎</span><span class="mono">02</span></div><h3>Víte, kde se potkáte.</h3><p>Conflict Radar upozorní, když ve stejné místnosti sdílíte změny stejného souboru. Ještě před slučováním.</p><div class="radar-visual"><div class="radar-circle"></div><div class="radar-circle second"></div><span class="radar-point first"></span><span class="radar-point second"></span><span class="mono">SPOLEČNÝ SOUBOR</span></div></article>
+      <article class="feature-card reveal"><div class="feature-top"><span class="feature-glyph" aria-hidden="true">≋</span><span class="mono">03</span></div><h3>Pracujte na stejné vlně.</h3><p>Týmové místnosti, živá aktivita a společná ambientní stopa. Hlasitost i to, co sdílíte, zůstává na vás.</p><div class="sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="mono sound-caption">MALÝ RITUÁL. LEPŠÍ SOUSTŘEDĚNÍ.</span></article>
+    </div>
+  </section>
+
+  <section id="uvnitr" class="section-block page-width" aria-labelledby="inside-title">
+    <div class="section-heading reveal"><div><p class="eyebrow">02 / ŽÁDNÉ DALŠÍ OKNO V PROHLÍŽEČI</p><h2 id="inside-title">Prostor, ve kterém<br><span class="text-dim">se rychle zabydlíte.</span></h2></div><p>Skutečné rozhraní. Ukázková data.<br>Čistý přehled bez zbytečného rozptylování.</p></div>
+    <div class="product-window reveal">
+      <div class="window-bar"><div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="mono">DiGitA / WORKSPACE</span><span class="mono hidden sm:inline">DESKTOP PREVIEW</span></div>
+      <div class="preview-buttons flex flex-wrap" role="group" aria-label="Vybrat ukázku aplikace"><button type="button" class="preview-button" aria-pressed="true" data-preview="workspace">01 &nbsp; Lokální Git</button><button type="button" class="preview-button" aria-pressed="false" data-preview="dashboard">02 &nbsp; Týmový prostor</button><button type="button" class="preview-button" aria-pressed="false" data-preview="conflict-radar">03 &nbsp; Conflict Radar</button></div>
+      <div class="screenshot-stage"><img id="preview-image" src="./images/workspace.png" width="1440" height="1156" alt="DiGitA: přehled větve, změněných souborů a posledního commitu v lokálním repozitáři." loading="lazy"></div>
+      <div class="preview-caption"><span id="preview-caption">Váš repozitář. Vše podstatné na jednom místě.</span><span class="mono">REÁLNÉ ROZHRANÍ ↗</span></div>
+    </div>
+  </section>
+
+  <section class="privacy-section section-block page-width reveal" aria-labelledby="privacy-title">
+    <div class="privacy-mark" aria-hidden="true"><svg viewBox="0 0 64 72" fill="none"><path d="M32 4 58 15v21c0 14-11 24-26 32C17 60 6 50 6 36V15L32 4Z" stroke="currentColor" stroke-width="1"/><path d="m22 35 7 7 15-17" stroke="currentColor" stroke-width="1.5"/></svg></div>
+    <div><p class="eyebrow">VÁŠ KÓD ZŮSTÁVÁ VÁŠ</p><h2 id="privacy-title">Sdílejte kontext.<br><span class="text-dim">Rozhodujte o detailech.</span></h2></div>
+    <div class="privacy-copy"><p>Obsah zdrojových souborů DiGitA neodesílá. Pro spolupráci sdílí metadata a vy určujete, zda tým uvidí větev, názvy souborů nebo zprávu commitu.</p><a class="text-link" href="https://github.com/ItzSoftTheFox/DiGitA">Prohlédnout zdrojový kód <span aria-hidden="true">↗</span></a></div>
+  </section>
+
+  <section id="stahnout" class="download-section" aria-labelledby="download-title"><div class="page-width">
+    <div class="download-layout">
+      <div class="reveal"><p class="eyebrow">03 / VÁŠ DALŠÍ PRACOVNÍ PROSTOR</p><h2 id="download-title">Místo pro váš<br>příští nápad<span class="text-dim">.</span></h2><p class="download-description">Stáhněte DiGitA, připojte svůj repozitář<br>a pozvěte tým do společné místnosti.</p><a class="text-link" href="https://github.com/ItzSoftTheFox/DiGitA/releases">Všechna vydání na GitHubu <span aria-hidden="true">↗</span></a></div>
+      <div class="download-card reveal"><div class="flex items-start justify-between gap-4"><div class="linux-symbol" aria-hidden="true">Λ</div><span class="tag mono">VÝVOJOVÝ PILOT</span></div><h3>Arch Linux</h3><p class="mono package-meta">x86_64 <span> / </span> v0.1.0 <span> / </span> {{package_size}}</p><a class="button-primary download-button" href="./downloads/digita-0.1.0-1-x86_64.pkg.tar.zst" download>Stáhnout DiGitA <span aria-hidden="true">↓</span></a><p class="download-note">Testovací balíček pro aktuální Arch Linux. Bez digitálního podpisu; instalace na čistém systému zatím není ověřená.</p><div class="download-links"><a href="./downloads/digita-0.1.0-1-x86_64.pkg.tar.zst.sha256" download>SHA-256 ↗</a><a href="https://github.com/ItzSoftTheFox/DiGitA/blob/main/docs/arch-linux.md">Návod k instalaci ↗</a></div><details class="install-details"><summary>Jak balíček nainstalovat <span aria-hidden="true">+</span></summary><p>V terminálu otevřete složku se staženým souborem a spusťte:</p><code>sudo pacman -U ./digita-0.1.0-1-x86_64.pkg.tar.zst</code><p>DiGitA pak najdete v menu aplikací. Pro týmovou spolupráci potřebujete účet a připojení k internetu; registrace může být během pilotu uzavřená.</p></details></div>
+    </div>
+    <div class="platform-footer mono"><span><i class="status-dot" aria-hidden="true"></i> PRVNÍ ZASTÁVKA: ARCH LINUX</span><span>WINDOWS A macOS / POZDĚJI</span></div>
+  </div></section>
+
+  <section id="otazky" class="section-block page-width faq-layout" aria-labelledby="faq-title"><div class="reveal"><p class="eyebrow">04 / JEŠTĚ PÁR ODPOVĚDÍ</p><h2 id="faq-title">Než začnete<span class="text-dim">.</span></h2></div><div class="faq-list reveal">
+    <details><summary>Je to aplikace, nebo web? <span aria-hidden="true">+</span></summary><p>DiGitA je instalovatelná desktopová aplikace postavená na Reactu a Tauri. Tento web slouží k představení a stažení. Po instalaci se aplikace otevírá ve vlastním okně.</p></details>
+    <details><summary>Mění DiGitA můj repozitář? <span aria-hidden="true">+</span></summary><p>Aktuální verze Git repozitář pouze čte. Commitování, push i merge dál provádíte svými obvyklými nástroji. Obsah kódu DiGitA nesynchronizuje.</p></details>
+    <details><summary>Potřebuji účet? <span aria-hidden="true">+</span></summary><p>Lokální přehled repozitáře můžete používat bez přihlášení. Účet potřebujete pro týmy, pozvánky a živé místnosti. Registrace se během uzavřeného pilotu zpřístupňuje podle potřeby.</p></details>
+    <details><summary>Je už aplikace připravená pro běžný provoz? <span aria-hidden="true">+</span></summary><p>Zatím jde o vývojový pilot. Funkce se mění a mohou se objevit chyby. Server po nečinnosti může potřebovat chvíli na probuzení. Conflict Radar upozorňuje na překryvy souborů, nepředpovídá každý merge konflikt.</p></details>
+    <details><summary>Kde můžu nahlásit chybu? <span aria-hidden="true">+</span></summary><p>Otevřete <a href="https://github.com/ItzSoftTheFox/DiGitA/issues">issue na GitHubu</a> a přidejte popis problému, verzi aplikace a systém. Nevkládejte hesla, tokeny ani citlivý obsah repozitáře.</p></details>
+  </div></section>
+</main>
+<footer class="page-width site-footer"><div class="footer-top"><a class="brand" href="#" aria-label="DiGitA — zpět nahoru"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M5 5h16l14 14v16H19L5 21V5Z M14 5v21h21M5 14h21v21" stroke="currentColor" stroke-width="1.5"/></svg><span>DiGitA<sup>01</sup></span></a><p>Vytvořeno pro soustředění.<br>A pro to, co vytvoříte společně.</p><div class="flex flex-wrap gap-6 text-sm"><a href="https://github.com/ItzSoftTheFox/DiGitA">GitHub ↗</a><a href="https://github.com/ItzSoftTheFox/DiGitA/releases">Vydání ↗</a><a href="https://github.com/ItzSoftTheFox/DiGitA/issues">Zpětná vazba ↗</a></div></div><div class="footer-bottom mono"><span>DIGITA / 2026</span><span>LOCAL FIRST. BUILT FOR FOCUS.</span><a href="#">ZPĚT NAHORU ↑</a></div></footer>
+</body>
+</html>
