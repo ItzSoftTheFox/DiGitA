@@ -1,14 +1,14 @@
-# DiGitA pro Arch Linux x86_64
+# DiGitA for Arch Linux x86_64
 
-První distribuční balíček je nativní `.pkg.tar.zst` pro pacman. Obsahuje
-zkompilovanou Tauri aplikaci, přibalené rozhraní, ikonu a položku v menu.
-Při používání není potřeba Node.js, Rust, Python ani lokální databáze.
-Git je potřebný pro čtení repozitářů; systémové knihovny nainstaluje pacman.
-Backend je `https://digita-hvse.onrender.com`.
+The first distribution package is a native pacman `.pkg.tar.zst`. It contains
+the compiled Tauri application, bundled interface, icon, and menu entry.
+Running it requires no Node.js, Rust, Python, or local database. Git is needed
+to read repositories; pacman installs runtime libraries.
+The default pilot backend is `https://digita-hvse.onrender.com`.
 
-## Sestavení z aktuálního pracovního stromu
+## Build from the current working tree
 
-Na aktualizovaném Arch Linuxu nainstaluj build závislosti, pokud ještě chybí:
+On an up-to-date Arch Linux installation, install any missing build dependencies:
 
 ```sh
 sudo pacman -S --needed base-devel rust nodejs npm python webkit2gtk-4.1 gtk3 libappindicator openssl git libsoup3 dbus gst-plugins-good
@@ -16,52 +16,54 @@ npm ci
 bash scripts/build-arch.sh
 ```
 
-Skript sestaví release binárku s vloženým frontendem a HTTPS/WSS adresou serveru,
-připraví lokální PKGBUILD s kontrolními součty a spustí makepkg bez sudo.
-Nic neinstaluje ani nepublikuje. GitHub Actions se nepoužívají.
-Verze se přebírá z package.json a kontroluje proti Tauri/Cargo verzím.
-Jiný backend lze zvolit proměnnou `VITE_API_URL` před spuštěním skriptu.
+The script builds the release binary with the frontend and API HTTPS/WSS origin,
+prepares a local PKGBUILD with checksums, and runs makepkg without sudo.
+It neither installs nor publishes anything and does not use GitHub Actions.
+The version comes from package.json and is checked against Tauri/Cargo versions.
+Set `VITE_API_URL` before running the script to select a different backend.
 
-Výstup pro aktuální verzi:
+Output for the current version:
 
 ```text
 artifacts/arch/digita-0.1.0-1-x86_64.pkg.tar.zst
 artifacts/arch/digita-0.1.0-1-x86_64.pkg.tar.zst.sha256
 ```
 
-`artifacts/arch/stage.*` jsou pomocné adresáře z jednotlivých sestavení.
-Nejsou součástí repozitáře ani instalovaného balíčku. Samotný PKGBUILD v
-packaging/arch vyžaduje vstupy připravené skriptem; není to hotový AUR recept.
+`artifacts/arch/stage.*` contains intermediate build directories, not repository
+or installed files. The PKGBUILD in `packaging/arch` requires inputs prepared
+by the script; it is not a ready-to-use AUR recipe.
 
-## Instalace a spuštění
+## Install and launch
 
-Z kořene projektu:
+From the repository root:
 
 ```sh
 sudo pacman -U artifacts/arch/digita-0.1.0-1-x86_64.pkg.tar.zst
 digita
 ```
 
-Aplikaci lze spustit také z menu prostředí. Pokud máš stažený balíček jinde,
-použij jeho cestu. Další verzi nainstaluj stejným příkazem `pacman -U`.
-Odinstalace: `sudo pacman -R digita`.
+You can also launch DiGitA from the applications menu. Use the actual archive
+path if downloaded elsewhere. Install later versions with the same `pacman -U`
+command. Uninstall with `sudo pacman -R digita`.
 
-Pro zapamatování přihlášení musí v uživatelské relaci fungovat odemčená
-Secret Service klíčenka (např. GNOME Keyring). Bez ní lze použít přihlášení
-pro aktuální spuštění. Instalace samotného balíčku klíčenku nenastavuje.
+Remembering sign-in requires an unlocked Secret Service keyring, such as GNOME
+Keyring, in the desktop session. Otherwise, use an in-memory session for the
+current launch. Installing the package does not configure a keyring.
+New builds default to English; select Czech in **Settings → Language**.
+The existing downloadable v0.1.0 archive predates this language setting.
 
-Balíček je určen pro aktuální Arch x86_64; kompatibilita se staršími knihovnami
-nebo jinými distribucemi není garantovaná. Není podepsaný distribučním klíčem.
-SHA-256 ověřuje shodu souboru, nikoliv identitu vydavatele.
-Před zveřejněním ověř na desktopu instalaci, start, přihlášení, výběr Git
-repozitáře, spolupráci dvou klientů a přehrávání zvuku.
+The package targets current Arch x86_64. Older libraries and other distributions
+are not verified. It is not signed with a distribution key. SHA-256 verifies
+file consistency, not publisher identity.
+Before publication, validate installation, startup, sign-in, native Git selection,
+two-client collaboration, and audio on a desktop.
 
-## Stažení pro ostatní
+## Distributing the package
 
-Po ověření přilož `.pkg.tar.zst` a `.sha256` jako soubory testovacího
-GitHub Release. Web může odkazovat přímo na tento publikovaný balíček.
-Není potřeba zveřejňovat `.env`, databázové připojení ani build adresáře.
-macOS/Windows a obecný Linux AppImage jsou zatím odložené.
+After validation, attach `.pkg.tar.zst` and `.sha256` to a test GitHub Release.
+The website can link directly to that published asset. Do not publish `.env`,
+database credentials, or build directories. macOS, Windows, and a general Linux
+AppImage remain deferred.
 
-Reference: [Arch makepkg](https://man.archlinux.org/man/makepkg.8),
-[Tauri distribuce pro Arch](https://v2.tauri.app/distribute/aur/).
+References: [Arch makepkg](https://man.archlinux.org/man/makepkg.8),
+[Tauri distribution for Arch](https://v2.tauri.app/distribute/aur/).

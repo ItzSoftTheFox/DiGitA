@@ -21,4 +21,6 @@ cp artifacts/readme-ambient.png docs/images/ambient.png
 
 Review the captures before committing. Raw test output stays in ignored
 `artifacts/`; these selected copies belong in Git so relative README image links
-work on GitHub. UI labels, paths, and names are intentionally left unchanged.
+work on GitHub. Capture the default English UI. User-provided paths and names
+remain unchanged. The floating Settings button is hidden only while capturing
+cropped component images, so it does not obscure their content.

@@ -59,13 +59,13 @@ it("clears withdrawn local paths and offline state immediately", () => {
     <ConflictRadar state={state([warning])} userId="me" presence={presence} />,
   );
   expect(screen.getByText("private.ts")).toBeTruthy();
-  expect(screen.getByText("Anna (vy), Petr")).toBeTruthy();
+  expect(screen.getByText("Anna (you), Petr")).toBeTruthy();
   view.rerender(
     <ConflictRadar state={state([warning])} userId="me" presence={null} />,
   );
   expect(screen.queryByText("private.ts")).toBeNull();
   view.rerender(<ConflictRadar state={null} userId="me" presence={presence} />);
-  expect(screen.getByText(/Radar čeká na spojení/)).toBeTruthy();
+  expect(screen.getByText(/Radar is waiting for a connection/)).toBeTruthy();
   expect(notification.send).not.toHaveBeenCalled();
 });
 
@@ -76,7 +76,7 @@ it("throttles successive warnings and cancels pending notifications on opt-out",
     <ConflictRadar state={state()} userId="me" presence={presence} />,
   );
   await act(async () => {
-    fireEvent.click(screen.getByText("Zapnout systémová upozornění"));
+    fireEvent.click(screen.getByText("Enable system notifications"));
   });
   view.rerender(
     <ConflictRadar state={state([warning])} userId="me" presence={presence} />,
@@ -100,7 +100,7 @@ it("throttles successive warnings and cancels pending notifications on opt-out",
       presence={presence}
     />,
   );
-  fireEvent.click(screen.getByText("Vypnout systémová upozornění"));
+  fireEvent.click(screen.getByText("Disable system notifications"));
   act(() => vi.advanceTimersByTime(30000));
   expect(notification.send).toHaveBeenCalledTimes(2);
 });
@@ -112,7 +112,7 @@ it("requires permission, batches bursts, cancels resolved alerts and suppresses 
     <ConflictRadar state={state()} userId="me" presence={presence} />,
   );
   await act(async () => {
-    fireEvent.click(screen.getByText("Zapnout systémová upozornění"));
+    fireEvent.click(screen.getByText("Enable system notifications"));
   });
   view.rerender(
     <ConflictRadar state={state([warning])} userId="me" presence={presence} />,
@@ -156,9 +156,9 @@ it("keeps radar usable after notification permission denial", async () => {
     <ConflictRadar state={state([warning])} userId="me" presence={presence} />,
   );
   await act(async () => {
-    fireEvent.click(screen.getByText("Zapnout systémová upozornění"));
+    fireEvent.click(screen.getByText("Enable system notifications"));
   });
-  expect(screen.getByRole("alert").textContent).toContain("nejsou povolená");
+  expect(screen.getByRole("alert").textContent).toContain("are not allowed");
   expect(screen.getByText("private.ts")).toBeTruthy();
   expect(notification.send).not.toHaveBeenCalled();
 });

@@ -1,4 +1,4 @@
-# DiGitA API — Phases 2–5
+# DiGitA API — desktop pilot
 
 FastAPI service for accounts, teams, membership roles, rooms, invitation codes,
 live Git presence, Conflict Radar, and shared ambient playback. The desktop now connects through HTTP and WebSocket.
@@ -215,7 +215,7 @@ Tests cover account validation, secret storage, session expiry/logout, team
 isolation, role changes, removal, invitation expiry/revocation, concurrent
 single-use acceptance, rate limits, migration/schema consistency, live metadata
 privacy and revocation, conflict lifecycle, and ambient clock/control isolation.
-The latest Phase 5 run passed 45 tests on SQLite; the last PostgreSQL run was
+The historical Phase 5 run passed 45 tests on SQLite; the last PostgreSQL run was
 the 39-test Phase 4 suite. See the [main README](../Readme.md) for validation
 history and the Windows VM/SSH setup.
 
@@ -254,7 +254,7 @@ Limits apply server-side and can be changed through environment variables:
 | `DIGITA_MAX_USER_SESSIONS` | 5 | Unexpired sessions per user |
 | `DIGITA_CLEANUP_INTERVAL_SECONDS` | 3600 | Interval between expiry cleanup runs |
 
-Capacity errors return HTTP 409 with a Czech explanation already displayed by the
+Capacity errors return HTTP 409 with an English explanation already displayed by the
 frontend. Failed joins do not consume invitations. Leaving/removing a member and
 revoking/consuming/expiring an invitation free the corresponding capacity.
 At the session limit, a successful new login revokes the session with the earliest
@@ -291,4 +291,6 @@ cleaned in disposable SQLite/PostgreSQL databases. Apply production cleanup by
 starting the updated service or running the explicit command above.
 
 Quota/cleanup validation: 78 tests passed on SQLite and PostgreSQL 18.6 (UTF-8).
-CI also runs the backend suite against PostgreSQL 17, matching Compose.
+The paused CI workflow defines a PostgreSQL 17 job, matching Compose; it does not
+currently run. For the current local verification and remaining manual checks,
+see [0.2.0 phase 1](../docs/validation-0.2.0-phase-1.md).

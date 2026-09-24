@@ -1,3 +1,4 @@
+import { t, useTranslation } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { Headphones, Pause, Play, Volume2 } from "lucide-react";
 import type { AmbientClock } from "./useRoom";
@@ -14,6 +15,7 @@ export function AmbientPlayer({
   state: AmbientClock | null;
   onPlaying: (playing: boolean) => boolean;
 }) {
+  useTranslation();
   const audio = useRef<HTMLAudioElement>(null);
   const latest = useRef(state);
   latest.current = state;
@@ -57,7 +59,7 @@ export function AmbientPlayer({
           .catch(() => {
             if (generation.current !== currentGeneration) return;
             setListening(false);
-            setError("Zvuk nelze spustit. Zkuste znovu zapnout poslech.");
+            setError("Could not start audio. Try enabling listening again.");
           })
           .finally(() => {
             starting = false;
@@ -94,7 +96,7 @@ export function AmbientPlayer({
     // The effect pauses again if the shared room is paused.
     void attempt.catch((cause: unknown) => {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
-      setError("Zvuk nelze spustit. Zkuste znovu zapnout poslech.");
+      setError("Could not start audio. Try enabling listening again.");
       setListening(false);
     });
   }
@@ -107,24 +109,22 @@ export function AmbientPlayer({
         loop
         preload="auto"
         onError={() => {
-          setError(
-            "Zvukovou stopu se nepodařilo načíst. Zkuste znovu otevřít místnost.",
-          );
+          setError("Could not load the audio track. Try reopening the room.");
           setListening(false);
         }}
       />
       <div className="ambient-heading">
         <h2 id="ambient-title">
-          <Headphones size={18} /> Společné prostředí
+          <Headphones size={18} /> {t("Shared ambience")}
         </h2>
-        <span>Jemný šum · 30s smyčka</span>
+        <span>{t("Soft noise · 30-second loop")}</span>
       </div>
       <p className="muted" aria-live="polite">
         {!state
-          ? "Čekám na spojení — poslech je pozastavený."
+          ? t("Waiting for a connection — listening is paused.")
           : state.playing
-            ? "V místnosti se přehrává."
-            : "Přehrávání v místnosti je pozastavené."}
+            ? t("The room is playing audio.")
+            : t("Room playback is paused.")}
       </p>
       <div className="ambient-controls">
         <button
@@ -132,21 +132,21 @@ export function AmbientPlayer({
           disabled={!state}
           onClick={() => {
             if (state && !onPlaying(!state.playing))
-              setError("Spojení se přerušilo. Zkuste to po obnovení.");
+              setError("Connection lost. Try again after reconnecting.");
           }}
         >
           {state?.playing ? <Pause size={16} /> : <Play size={16} />}
-          {state?.playing ? "Pozastavit pro všechny" : "Přehrát pro všechny"}
+          {state?.playing ? t("Pause for everyone") : t("Play for everyone")}
         </button>
         <button
           className="button"
           disabled={!state && !listening}
           onClick={toggleListening}
         >
-          {listening ? "Vypnout můj poslech" : "Zapnout můj poslech"}
+          {listening ? t("Stop listening") : t("Start listening")}
         </button>
         <label className="ambient-volume">
-          <Volume2 size={16} /> Moje hlasitost
+          <Volume2 size={16} /> {t("My volume")}
           <input
             type="range"
             min="0"
@@ -156,19 +156,20 @@ export function AmbientPlayer({
           />
           <span>{volume} %</span>
         </label>
-        <span className="mono" aria-label="Pozice stopy">
+        <span className="mono" aria-label={t("Track position")}>
           {state
             ? `0:${Math.floor(position).toString().padStart(2, "0")} / 0:30`
             : "— / 0:30"}
         </span>
       </div>
       <p className="muted">
-        Přehrávání ovládají členové společně. Zapnutí poslechu a hlasitost platí
-        jen pro vás.
+        {t(
+          "Room members share playback controls. Listening and volume are personal.",
+        )}
       </p>
       {error && (
         <p className="form-error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
     </section>

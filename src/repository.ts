@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface ChangedFile {
@@ -27,17 +28,19 @@ export const isStaged = (file: ChangedFile) =>
 export const isUnstaged = (file: ChangedFile) =>
   file.worktreeStatus !== "." && !file.conflicted;
 export const statusLabel = (value: string) =>
-  ({
-    ".": "—",
-    "?": "Nový",
-    M: "Upravený",
-    A: "Přidaný",
-    D: "Smazaný",
-    R: "Přejmenovaný",
-    C: "Kopie",
-    U: "Konflikt",
-    T: "Změna typu",
-  })[value] ?? value;
+  t(
+    {
+      ".": "—",
+      "?": "New",
+      M: "Modified",
+      A: "Added",
+      D: "Deleted",
+      R: "Renamed",
+      C: "Copied",
+      U: "Conflict",
+      T: "Type changed",
+    }[value] ?? value,
+  );
 
 export const demoRepository: RepositorySnapshot = {
   root: "~/Projects/digita",

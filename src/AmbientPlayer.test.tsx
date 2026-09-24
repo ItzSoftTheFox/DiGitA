@@ -43,11 +43,11 @@ it("requires opt-in, keeps volume local and pauses offline and on unmount", asyn
   expect(audio.volume).toBe(0.42);
   expect(control).not.toHaveBeenCalled();
   await act(async () => {
-    fireEvent.click(screen.getByText("Zapnout můj poslech"));
+    fireEvent.click(screen.getByText("Start listening"));
   });
   expect(audio.play).toHaveBeenCalled();
   expect(audio.currentTime).toBe(5);
-  fireEvent.click(screen.getByText("Pozastavit pro všechny"));
+  fireEvent.click(screen.getByText("Pause for everyone"));
   expect(control).toHaveBeenCalledWith(false);
   vi.mocked(audio.play).mockClear();
   view.rerender(<AmbientPlayer state={null} onPlaying={control} />);
@@ -72,7 +72,7 @@ it("corrects drift and respects a shared pause", async () => {
   const view = render(<AmbientPlayer state={initial} onPlaying={() => true} />);
   const audio = view.container.querySelector("audio")!;
   await act(async () => {
-    fireEvent.click(screen.getByText("Zapnout můj poslech"));
+    fireEvent.click(screen.getByText("Start listening"));
   });
   audio.currentTime = 20;
   act(() => vi.advanceTimersByTime(1000));
@@ -94,8 +94,8 @@ it("surfaces playback failure and allows a deliberate retry", async () => {
   );
   render(<AmbientPlayer state={initial} onPlaying={() => true} />);
   await act(async () => {
-    fireEvent.click(screen.getByText("Zapnout můj poslech"));
+    fireEvent.click(screen.getByText("Start listening"));
   });
-  expect(screen.getByRole("alert").textContent).toContain("Zvuk nelze spustit");
-  expect(screen.getByText("Zapnout můj poslech")).toBeTruthy();
+  expect(screen.getByRole("alert").textContent).toContain("Could not start audio");
+  expect(screen.getByText("Start listening")).toBeTruthy();
 });

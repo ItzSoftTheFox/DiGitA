@@ -2,17 +2,17 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function register(page: Page, name: string, email: string) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Nemám účet — registrovat" }).click();
-  await page.getByLabel("Jméno", { exact: true }).fill(name);
-  await page.getByLabel("E-mail", { exact: true }).fill(email);
+  await page.getByRole("button", { name: "No account? Register" }).click();
+  await page.getByLabel("Display name", { exact: true }).fill(name);
+  await page.getByLabel("Email", { exact: true }).fill(email);
   await page
-    .getByLabel("Heslo", { exact: true })
+    .getByLabel("Password", { exact: true })
     .fill("a phase three test password");
   await page
-    .getByRole("button", { name: "Vytvořit účet", exact: true })
+    .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Všechno má své místo." }),
+    page.getByRole("heading", { name: "Everything has its place." }),
   ).toBeVisible();
 }
 
@@ -32,6 +32,10 @@ test("two accounts create a room, share private-by-default Git presence and reco
   owner.on("pageerror", (e) => errors.push(e.message));
   member.on("pageerror", (e) => errors.push(e.message));
   const frames: string[] = [];
+  let connections = 0;
+  owner.on("websocket", () => {
+    connections += 1;
+  });
   owner.on("websocket", (socket) =>
     socket.on("framesent", (event) => {
       const payload = String(event.payload);
@@ -86,69 +90,68 @@ test("two accounts create a room, share private-by-default Git presence and reco
     const suffix = Date.now();
     await register(owner, "Anna", `anna-${suffix}@example.com`);
     await owner
-      .getByRole("button", { name: "Vytvořit tým", exact: true })
+      .getByRole("button", { name: "Create team", exact: true })
       .click();
-    await owner.getByLabel("Název", { exact: true }).fill("Vývojáři");
-    await owner.getByRole("button", { name: "Vytvořit", exact: true }).click();
+    await owner.getByLabel("Name", { exact: true }).fill("Developers");
+    await owner.getByRole("button", { name: "Create", exact: true }).click();
     await expect(
-      owner.getByRole("heading", { name: "Vývojáři" }),
+      owner.getByRole("heading", { name: "Developers" }),
     ).toBeVisible();
-    await owner.getByRole("button", { name: "Vytvořit místnost" }).click();
-    await owner.getByLabel("Název", { exact: true }).fill("Společný projekt");
-    await owner.getByRole("button", { name: "Vytvořit", exact: true }).click();
+    await owner.getByRole("button", { name: "Create room" }).click();
+    await owner.getByLabel("Name", { exact: true }).fill("Shared project");
+    await owner.getByRole("button", { name: "Create", exact: true }).click();
     await expect(
-      owner.getByRole("button", { name: /Společný projekt/ }),
+      owner.getByRole("button", { name: /Shared project/ }),
     ).toBeVisible();
     await owner.screenshot({ path: "artifacts/dashboard.png", fullPage: true });
     await owner
       .locator(".dashboard")
-      .screenshot({ path: "artifacts/readme-dashboard.png" });
-    await owner.getByRole("button", { name: "Pozvat člena" }).click();
-    const code = await owner.getByLabel("Vytvořený kód pozvánky").inputValue();
+      .screenshot({
+        path: "artifacts/readme-dashboard.png",
+        style: ".language-settings-button { visibility: hidden; }",
+      });
+    await owner.getByRole("button", { name: "Invite member" }).click();
+    const code = await owner.getByLabel("Created invitation code").inputValue();
     await register(member, "Petr", `petr-${suffix}@example.com`);
-    await member
-      .getByRole("button", { name: "Připojit se přes pozvánku" })
-      .click();
-    await member.getByLabel("Kód pozvánky", { exact: true }).fill(code);
-    await member.getByRole("button", { name: "Přijmout pozvánku" }).click();
+    await member.getByRole("button", { name: "Join with invitation" }).click();
+    await member.getByLabel("Invitation code", { exact: true }).fill(code);
+    await member.getByRole("button", { name: "Accept invitation" }).click();
     await expect(
-      member.getByRole("button", { name: /Společný projekt/ }),
+      member.getByRole("button", { name: /Shared project/ }),
     ).toBeVisible();
-    await owner.getByRole("button", { name: "Vytvořit místnost" }).click();
-    await owner.getByLabel("Název", { exact: true }).fill("Další projekt");
-    await owner.getByRole("button", { name: "Vytvořit", exact: true }).click();
+    await owner.getByRole("button", { name: "Create room" }).click();
+    await owner.getByLabel("Name", { exact: true }).fill("Next project");
+    await owner.getByRole("button", { name: "Create", exact: true }).click();
     await expect(
-      owner.getByRole("button", { name: /Další projekt/ }),
+      owner.getByRole("button", { name: /Next project/ }),
     ).toBeVisible();
     await expect(
-      member.getByRole("button", { name: /Další projekt/ }),
+      member.getByRole("button", { name: /Next project/ }),
     ).toHaveCount(0);
-    await member.getByRole("button", { name: "Obnovit místnosti" }).click();
+    await member.getByRole("button", { name: "Refresh rooms" }).click();
     await expect(
-      member.getByRole("button", { name: /Další projekt/ }),
+      member.getByRole("button", { name: /Next project/ }),
     ).toBeVisible();
-    await member.getByRole("button", { name: "Lokální režim" }).click();
-    await member
-      .getByRole("button", { name: "Zpět do týmového prostoru" })
-      .click();
+    await member.getByRole("button", { name: "Local mode" }).click();
+    await member.getByRole("button", { name: "Back to team space" }).click();
     await expect(
-      member.getByRole("heading", { name: "Všechno má své místo." }),
+      member.getByRole("heading", { name: "Everything has its place." }),
     ).toBeVisible();
-    await owner.getByRole("button", { name: /Společný projekt/ }).click();
-    await member.getByRole("button", { name: /Společný projekt/ }).click();
-    await expect(owner.getByRole("status")).toHaveText("Živě připojeno");
-    await expect(member.getByRole("status")).toHaveText("Živě připojeno");
+    await owner.getByRole("button", { name: /Shared project/ }).click();
+    await member.getByRole("button", { name: /Shared project/ }).click();
+    await expect(owner.getByRole("status")).toHaveText("Connected live");
+    await expect(member.getByRole("status")).toHaveText("Connected live");
     const ownerAudio = owner.locator(".ambient-player audio");
     const memberAudio = member.locator(".ambient-player audio");
-    await owner.getByRole("button", { name: "Přehrát pro všechny" }).click();
+    await owner.getByRole("button", { name: "Play for everyone" }).click();
     await expect(
-      member.getByRole("button", { name: "Pozastavit pro všechny" }),
+      member.getByRole("button", { name: "Pause for everyone" }),
     ).toBeVisible();
     expect(
       await memberAudio.evaluate((el: HTMLAudioElement) => el.paused),
     ).toBe(true);
-    await owner.getByRole("button", { name: "Zapnout můj poslech" }).click();
-    await member.getByRole("button", { name: "Zapnout můj poslech" }).click();
+    await owner.getByRole("button", { name: "Start listening" }).click();
+    await member.getByRole("button", { name: "Start listening" }).click();
     await expect
       .poll(() =>
         memberAudio.evaluate((el: HTMLAudioElement) => el.currentTime),
@@ -166,64 +169,94 @@ test("two accounts create a room, share private-by-default Git presence and reco
         return Math.min(difference, 30 - difference);
       })
       .toBeLessThan(0.8);
-    await member.getByRole("slider", { name: /Moje hlasitost/ }).fill("60");
+    await member.getByRole("slider", { name: /My volume/ }).fill("60");
     expect(await ownerAudio.evaluate((el: HTMLAudioElement) => el.volume)).toBe(
       0.25,
     );
     expect(
       await memberAudio.evaluate((el: HTMLAudioElement) => el.volume),
     ).toBe(0.6);
-    await member
-      .getByRole("button", { name: "Pozastavit pro všechny" })
-      .click();
+    await member.getByRole("button", { name: "Pause for everyone" }).click();
     await expect
       .poll(() => ownerAudio.evaluate((el: HTMLAudioElement) => el.paused))
       .toBe(true);
     await expect(
-      owner.getByRole("button", { name: "Přehrát pro všechny" }),
+      owner.getByRole("button", { name: "Play for everyone" }),
     ).toBeVisible();
     // Wait beyond the shared anti-flapping interval before resuming.
     await owner.waitForTimeout(550);
-    await owner.getByRole("button", { name: "Přehrát pro všechny" }).click();
+    await owner.getByRole("button", { name: "Play for everyone" }).click();
     await expect
       .poll(() => memberAudio.evaluate((el: HTMLAudioElement) => el.paused))
       .toBe(false);
     const anna = member.locator(".member-card").filter({ hasText: "Anna" });
     await expect(anna).toContainText("Online");
     await owner
-      .getByRole("button", { name: "Připojit repozitář", exact: true })
+      .getByRole("button", { name: "Connect repository", exact: true })
       .click();
     await expect(
       owner.getByText("Private local folder", { exact: true }).last(),
     ).toBeVisible();
-    await expect(anna).toContainText("Git stav se nesdílí.");
+    await expect(anna).toContainText("Git status is not shared.");
     await owner
-      .getByLabel("Toto je repozitář této místnosti — sdílet Git stav")
+      .getByLabel("This repository belongs to this room — share Git status")
       .check();
-    await expect(anna).toContainText("1 změněných souborů");
+    await expect(anna).toContainText("1 changed files");
     await expect(anna).not.toContainText("feature/team");
     await expect(anna).not.toContainText("src/team.ts");
-    await owner.getByLabel("Názvy souborů", { exact: true }).check();
-    await owner.getByLabel("Název větve", { exact: true }).check();
+    await owner.getByLabel("File names", { exact: true }).check();
+    await owner.getByLabel("Branch name", { exact: true }).check();
     await expect(anna).toContainText("src/team.ts");
     await expect(anna).toContainText("feature/team");
     await member
-      .getByRole("button", { name: "Připojit repozitář", exact: true })
+      .getByRole("button", { name: "Connect repository", exact: true })
       .click();
     await member
-      .getByLabel("Toto je repozitář této místnosti — sdílet Git stav")
+      .getByLabel("This repository belongs to this room — share Git status")
       .check();
     const radar = member.locator(".conflict-radar");
     await expect(radar.locator(".conflict-list li")).toHaveCount(0);
-    await member.getByLabel("Názvy souborů", { exact: true }).check();
+    await member.getByLabel("File names", { exact: true }).check();
     await expect(radar.locator(".conflict-list li")).toHaveCount(1);
     await expect(radar).toContainText("src/team.ts");
     await expect(radar).toContainText("Anna");
-    await expect(radar).toContainText("Petr (vy)");
-    await radar.screenshot({ path: "artifacts/readme-radar.png" });
+    await expect(radar).toContainText("Petr (you)");
+    // A language change must not remount the room, revoke consent, or restart audio.
+    const connectionCount = connections;
+    const frameCount = frames.length;
+    await owner.getByRole("button", { name: "Settings", exact: true }).click();
+    await owner.getByLabel("Language", { exact: true }).selectOption("cs");
+    await owner.getByRole("button", { name: "Zavřít nastavení" }).click();
+    await expect(owner.getByRole("status")).toHaveText("Živě připojeno");
+    await expect(
+      owner.getByLabel("Názvy souborů", { exact: true }),
+    ).toBeChecked();
+    await expect(
+      owner.getByLabel("Toto je repozitář této místnosti — sdílet Git stav"),
+    ).toBeChecked();
+    await expect(
+      owner.getByRole("heading", { name: "Shared project", exact: true }),
+    ).toBeVisible();
+    await expect(member.locator("html")).toHaveAttribute("lang", "en");
+    expect(await ownerAudio.evaluate((el: HTMLAudioElement) => el.paused)).toBe(
+      false,
+    );
+    await owner.getByRole("button", { name: "Nastavení", exact: true }).click();
+    await owner.getByLabel("Jazyk", { exact: true }).selectOption("en");
+    await owner.getByRole("button", { name: "Close settings" }).click();
+    await expect(owner.getByRole("status")).toHaveText("Connected live");
+    expect(connections).toBe(connectionCount);
+    expect(frames.length).toBe(frameCount);
+    await radar.screenshot({
+      path: "artifacts/readme-radar.png",
+      style: ".language-settings-button { visibility: hidden; }",
+    });
     await member
       .locator(".ambient-player")
-      .screenshot({ path: "artifacts/readme-ambient.png" });
+      .screenshot({
+        path: "artifacts/readme-ambient.png",
+        style: ".language-settings-button { visibility: hidden; }",
+      });
     await member.screenshot({
       path: "artifacts/conflict-radar.png",
       fullPage: true,
@@ -255,14 +288,14 @@ test("two accounts create a room, share private-by-default Git presence and reco
       timeout: 10000,
     });
     await expect(member.locator(".room-timeline")).toContainText(
-      "má jiný poslední commit",
+      "has a different latest commit",
     );
     await member.screenshot({
       path: "artifacts/live-room.png",
       fullPage: true,
     });
     await memberContext.setOffline(true);
-    await expect(member.getByRole("status")).not.toHaveText("Živě připojeno", {
+    await expect(member.getByRole("status")).not.toHaveText("Connected live", {
       timeout: 20000,
     });
     await expect(anna).not.toContainText("src/next.ts");
@@ -271,7 +304,7 @@ test("two accounts create a room, share private-by-default Git presence and reco
       .poll(() => memberAudio.evaluate((el: HTMLAudioElement) => el.paused))
       .toBe(true);
     await memberContext.setOffline(false);
-    await expect(member.getByRole("status")).toHaveText("Živě připojeno", {
+    await expect(member.getByRole("status")).toHaveText("Connected live", {
       timeout: 20000,
     });
     await expect(anna).toContainText("src/next.ts");
@@ -296,24 +329,24 @@ test("two accounts create a room, share private-by-default Git presence and reco
       path: "artifacts/ambient-room.png",
       fullPage: true,
     });
-    await owner.getByLabel("Názvy souborů", { exact: true }).uncheck();
+    await owner.getByLabel("File names", { exact: true }).uncheck();
     await expect(anna).not.toContainText("src/next.ts");
     await expect(radar.locator(".conflict-list li")).toHaveCount(0);
     await expect(member.locator(".room-timeline")).not.toContainText(
       "src/next.ts",
     );
-    await owner.getByRole("button", { name: "Odpojit repozitář" }).click();
-    await expect(anna).toContainText("Git stav se nesdílí.");
+    await owner.getByRole("button", { name: "Disconnect repository" }).click();
+    await expect(anna).toContainText("Git status is not shared.");
     expect(frames.join("\n")).not.toContain("/workspace/private-repository");
     expect(frames.join("\n")).not.toContain("Private Author");
     expect(frames.join("\n")).not.toContain("Private commit message");
-    await member.getByRole("button", { name: "Všechny místnosti" }).click();
+    await member.getByRole("button", { name: "All rooms" }).click();
     await expect(
       owner.locator(".member-card").filter({ hasText: "Petr" }),
-    ).toContainText("Mimo místnost");
-    await member.getByRole("button", { name: "Odhlásit se" }).click();
+    ).toContainText("Outside the room");
+    await member.getByRole("button", { name: "Sign out" }).click();
     await expect(
-      member.getByRole("heading", { name: "Přihlásit se", exact: true }),
+      member.getByRole("heading", { name: "Sign in", exact: true }),
     ).toBeVisible();
     expect(errors).toEqual([]);
   } finally {

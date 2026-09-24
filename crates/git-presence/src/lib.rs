@@ -52,9 +52,9 @@ fn git(path: &Path, args: &[&str]) -> Result<Output, String> {
     }
     command.output().map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
-            "Git není dostupný. Nainstalujte Git a restartujte DiGitA.".to_string()
+            "Git is unavailable. Install Git and restart DiGitA.".to_string()
         } else {
-            format!("Git nelze spustit: {error}")
+            format!("Could not start Git: {error}")
         }
     })
 }
@@ -92,10 +92,10 @@ fn parse_status(bytes: &[u8]) -> Result<Status, String> {
             let columns = match record[0] { b'1' => 9, b'2' => 10, _ => 11 };
             let parts: Vec<_> = line.splitn(columns, ' ').collect();
             if parts.len() != columns || parts[1].len() != 2 {
-                return Err("Git vrátil neplatný stav souborů.".into());
+                return Err("Git returned an invalid file status.".into());
             }
             let original_path = if record[0] == b'2' {
-                Some(String::from_utf8_lossy(records.next().ok_or("Chybí původní název souboru.")?).into_owned())
+                Some(String::from_utf8_lossy(records.next().ok_or("The original file name is missing.")?).into_owned())
             } else { None };
             status.files.push(ChangedFile {
                 path: parts[columns - 1].to_string(), original_path,
@@ -106,7 +106,7 @@ fn parse_status(bytes: &[u8]) -> Result<Status, String> {
         }
     }
     if status.branch.is_empty() || status.oid.is_empty() {
-        return Err("Git nevrátil informace o větvi.".into());
+        return Err("Git did not return branch information.".into());
     }
     status.files.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(status)
@@ -115,11 +115,11 @@ fn parse_status(bytes: &[u8]) -> Result<Status, String> {
 pub fn read_repository(path: &str) -> Result<RepositorySnapshot, String> {
     let selected = Path::new(path);
     if !selected.is_dir() {
-        return Err("Vybraná složka neexistuje nebo není přístupná.".into());
+        return Err("The selected folder does not exist or is inaccessible.".into());
     }
     let root_bytes = checked(selected, &["rev-parse", "--show-toplevel"])?;
     let root_text = String::from_utf8(root_bytes)
-        .map_err(|_| "Cesta repozitáře musí být platné UTF-8.".to_string())?;
+        .map_err(|_| "The repository path must be valid UTF-8.".to_string())?;
     let root = root_text.strip_suffix('\n').unwrap_or(&root_text);
     // A carriage return may be part of a valid directory name on Unix.
     #[cfg(windows)]
@@ -136,7 +136,7 @@ pub fn read_repository(path: &str) -> Result<RepositorySnapshot, String> {
         let bytes = checked(root_path, &["log", "-1", "--no-show-signature", "--format=%H%x00%s%x00%an%x00%aI", &status.oid, "--"])?;
         let text = String::from_utf8_lossy(&bytes);
         let parts: Vec<_> = text.trim_end_matches(['\r', '\n']).splitn(4, '\0').collect();
-        if parts.len() != 4 { return Err("Git vrátil neplatná metadata commitu.".into()); }
+        if parts.len() != 4 { return Err("Git returned invalid commit metadata.".into()); }
         Some(Commit {
             hash: parts[0].into(), subject: parts[1].into(), author: parts[2].into(), authored_at: parts[3].into(),
         })

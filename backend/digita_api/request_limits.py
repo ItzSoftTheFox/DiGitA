@@ -38,7 +38,7 @@ class RequestBodyLimit:
                     length = -1
                 if length < 0 or length > self.max_bytes:
                     response = JSONResponse(
-                        {"detail": "Neplatná velikost požadavku."},
+                        {"detail": "Invalid request size."},
                         status_code=413 if length > self.max_bytes else 400,
                     )
                     await response(scope, receive, send)
@@ -50,7 +50,7 @@ class RequestBodyLimit:
         if status == 0:
             return
         if status != 200:
-            await JSONResponse({"detail": "Požadavek překročil limit."}, status_code=status)(
+            await JSONResponse({"detail": "The request exceeded the limit."}, status_code=status)(
                 scope, receive, send
             )
             return

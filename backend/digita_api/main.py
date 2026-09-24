@@ -55,7 +55,7 @@ def authenticated(
     )
     if auth is None:
         raise HTTPException(
-            401, "Přihlášení je neplatné nebo vypršelo.", headers={"WWW-Authenticate": "Bearer"}
+            401, "Your session is invalid or has expired.", headers={"WWW-Authenticate": "Bearer"}
         )
     return auth
 
@@ -67,14 +67,14 @@ def membership(session: Session, team_id: str, user_id: str) -> Membership:
     member = session.get(Membership, (team_id, user_id))
     if member is None:
         # Do not disclose other teams to non-members.
-        raise HTTPException(404, "Tým nebyl nalezen.")
+        raise HTTPException(404, "Team not found.")
     return member
 
 
 def manager(session: Session, team_id: str, user_id: str) -> Membership:
     member = membership(session, team_id, user_id)
     if member.role not in {"owner", "admin"}:
-        raise HTTPException(403, "Tato akce vyžaduje správce týmu.")
+        raise HTTPException(403, "This action requires a team admin.")
     return member
 
 
@@ -153,7 +153,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             audit.warning("request.rate_limited")
             response = JSONResponse(
                 status_code=429,
-                content={"detail": "Příliš mnoho pokusů. Zkuste to za minutu."},
+                content={"detail": "Too many attempts. Try again in a minute."},
                 headers={"Retry-After": "60"},
             )
         else:
@@ -169,21 +169,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             session.execute(text("SELECT 1"))
         except SQLAlchemyError:
-            raise HTTPException(503, "Databáze není dostupná.") from None
+            raise HTTPException(503, "The database is unavailable.") from None
         return {"status": "ok"}
 
     @app.post("/auth/register", response_model=s.UserOut, status_code=201)
     def register(body: s.Register, session: DB):
         if not settings.registration_enabled:
-            raise HTTPException(403, "Registrace je momentálně uzavřena.")
-        enforce_quota(session, User, settings.max_users, "Kapacita pilotu je naplněna.")
+            raise HTTPException(403, "Registration is currently closed.")
+        enforce_quota(session, User, settings.max_users, "The pilot has reached its capacity.")
         user = User(
             email=str(body.email),
             display_name=body.display_name,
             password_hash=passwords.hash(body.password),
         )
         session.add(user)
-        commit(session, "Účet s tímto e-mailem již existuje.")
+        commit(session, "An account with this email already exists.")
         audit.info("auth.registered")
         return user
 
@@ -194,7 +194,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not valid or user is None:
             audit.warning("auth.login_failed")
             raise HTTPException(
-                401, "Nesprávný e-mail nebo heslo.", headers={"WWW-Authenticate": "Bearer"}
+                401, "Incorrect email or password.", headers={"WWW-Authenticate": "Bearer"}
             )
         token = new_token()
         expiry = now() + timedelta(hours=settings.session_hours)
@@ -233,7 +233,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             session,
             Membership,
             settings.max_owned_teams,
-            "Dosáhli jste limitu vlastních týmů.",
+            "You have reached the limit for owned teams.",
             Membership.user_id == auth.user_id,
             Membership.role == "owner",
         )
@@ -241,7 +241,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             session,
             Membership,
             settings.max_joined_teams,
-            "Dosáhli jste limitu členství v týmech.",
+            "You have reached the team membership limit.",
             Membership.user_id == auth.user_id,
         )
         team = Team(name=body.name)
@@ -277,10 +277,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def set_role(team_id: str, user_id: str, body: s.RoleUpdate, auth: Auth, session: DB):
         caller = membership(session, team_id, auth.user_id)
         if caller.role != "owner":
-            raise HTTPException(403, "Role může měnit pouze vlastník týmu.")
+            raise HTTPException(403, "Only the team owner can change roles.")
         target = membership(session, team_id, user_id)
         if target.role == "owner":
-            raise HTTPException(409, "Roli vlastníka nelze změnit.")
+            raise HTTPException(409, "The owner's role cannot be changed.")
         target.role = body.role
         session.commit()
         user = session.get(User, user_id)
@@ -291,9 +291,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         caller = membership(session, team_id, auth.user_id)
         target = membership(session, team_id, user_id)
         if target.role == "owner":
-            raise HTTPException(409, "Vlastník nemůže opustit tým ani být odebrán.")
+            raise HTTPException(409, "The owner cannot leave or be removed from the team.")
         if user_id != auth.user_id and caller.role != "owner":
-            raise HTTPException(403, "Členy může odebírat pouze vlastník týmu.")
+            raise HTTPException(403, "Only the team owner can remove members.")
         session.delete(target)
         session.commit()
         return Response(status_code=204)
@@ -305,12 +305,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             session,
             Room,
             settings.max_team_rooms,
-            "Tým dosáhl limitu místností.",
+            "The team has reached its room limit.",
             Room.team_id == team_id,
         )
         room = Room(team_id=team_id, name=body.name)
         session.add(room)
-        commit(session, "Místnost s tímto názvem již v týmu existuje.")
+        commit(session, "A room with this name already exists in the team.")
         return room
 
     @app.get("/teams/{team_id}/rooms", response_model=list[s.RoomOut])
@@ -324,7 +324,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def get_room(room_id: str, auth: Auth, session: DB):
         room = session.get(Room, room_id)
         if room is None:
-            raise HTTPException(404, "Místnost nebyla nalezena.")
+            raise HTTPException(404, "Room not found.")
         membership(session, room.team_id, auth.user_id)
         return room
 
@@ -338,7 +338,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             session,
             Invitation,
             settings.max_team_invitations,
-            "Tým dosáhl limitu platných pozvánek.",
+            "The team has reached its active invitation limit.",
             Invitation.team_id == team_id,
         )
         token = new_token()
@@ -355,7 +355,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             delete(Invitation).where(Invitation.id == invite_id, Invitation.team_id == team_id)
         )
         if result.rowcount == 0:
-            raise HTTPException(404, "Pozvánka nebyla nalezena.")
+            raise HTTPException(404, "Invitation not found.")
         session.commit()
         return Response(status_code=204)
 
@@ -368,26 +368,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             .returning(Invitation.team_id)
         )
         if team_id is None:
-            raise HTTPException(404, "Pozvánka je neplatná nebo vypršela.")
+            raise HTTPException(404, "The invitation is invalid or has expired.")
         if session.get(Membership, (team_id, auth.user_id)):
             session.rollback()
-            raise HTTPException(409, "Již jste členem tohoto týmu.")
+            raise HTTPException(409, "You are already a member of this team.")
         enforce_quota(
             session,
             Membership,
             settings.max_joined_teams,
-            "Dosáhli jste limitu členství v týmech.",
+            "You have reached the team membership limit.",
             Membership.user_id == auth.user_id,
         )
         enforce_quota(
             session,
             Membership,
             settings.max_team_members,
-            "Tým dosáhl limitu členů.",
+            "The team has reached its member limit.",
             Membership.team_id == team_id,
         )
         session.add(Membership(team_id=team_id, user_id=auth.user_id, role="member"))
-        commit(session, "Již jste členem tohoto týmu.")
+        commit(session, "You are already a member of this team.")
         return session.get(Team, team_id)
 
     return app

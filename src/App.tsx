@@ -1,3 +1,4 @@
+import { t, useTranslation, dateLocale } from "./i18n";
 import { useEffect, useState, type ReactNode } from "react";
 import type { RepositorySnapshot } from "./repository";
 import { isTauri } from "@tauri-apps/api/core";
@@ -33,7 +34,7 @@ import { useRepository } from "./useRepository";
 
 type Filter = "all" | "staged" | "unstaged";
 const clock = (date: Date) =>
-  date.toLocaleTimeString("cs-CZ", {
+  date.toLocaleTimeString(dateLocale(), {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -66,6 +67,7 @@ export default function App({
   embedded?: boolean;
   navigation?: ReactNode;
 }) {
+  useTranslation();
   const desktop = isTauri();
   const [path, setPath] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
@@ -98,7 +100,7 @@ export default function App({
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Vyberte Git repozitář",
+        title: t("Choose a Git repository"),
       });
       if (typeof selected === "string") {
         setDemo(false);
@@ -131,7 +133,7 @@ export default function App({
       ) : (
         <Plus size={15} />
       )}{" "}
-      Připojit repozitář <ArrowUpRight size={15} />
+      {t("Connect repository")} <ArrowUpRight size={15} />
     </button>
   );
 
@@ -141,7 +143,7 @@ export default function App({
         <a
           className="brand"
           href="#workspace"
-          aria-label="DiGitA — přejít na workspace"
+          aria-label={t("DiGitA — go to workspace")}
         >
           <Mark />
           <span>
@@ -149,15 +151,15 @@ export default function App({
           </span>
         </a>
         <div className="sidebar-section-label">
-          PRACOVNÍ PROSTOR <span>01</span>
+          {t("WORKSPACE")} <span>01</span>
         </div>
-        <a className="nav-active" href="#workspace" aria-label="Přehled">
+        <a className="nav-active" href="#workspace" aria-label={t("Overview")}>
           <LayoutGrid size={16} />
-          <span>Přehled</span>
+          <span>{t("Overview")}</span>
           <ArrowUpRight size={15} />
         </a>
         <div className="sidebar-repository">
-          <div className="sidebar-section-label">REPOZITÁŘ</div>
+          <div className="sidebar-section-label">{t("REPOSITORY")}</div>
           {repo ? (
             <div className="repo-nav">
               <FolderGit2 size={16} />
@@ -166,7 +168,7 @@ export default function App({
             </div>
           ) : (
             <div className="repo-placeholder">
-              <span className="dashed-square" /> Zatím nepřipojeno
+              <span className="dashed-square" /> {t("Not connected yet")}
             </div>
           )}
           {desktop && (
@@ -175,7 +177,7 @@ export default function App({
               onClick={() => void selectRepository()}
               disabled={picking}
             >
-              <Plus size={14} /> Vybrat složku
+              <Plus size={14} /> {t("Choose folder")}
             </button>
           )}
         </div>
@@ -183,11 +185,11 @@ export default function App({
           <div className="privacy-card">
             <ShieldCheck size={19} />
             <p>
-              Váš kód. Váš prostor.
+              {t("Your code. Your space.")}
               <span>
-                Všechna data zůstávají
+                {t("Repository contents stay")}
                 <br />
-                na tomto zařízení.
+                {t("on this device.")}
               </span>
             </p>
           </div>
@@ -196,7 +198,8 @@ export default function App({
               <Command size={16} />
             </div>
             <div>
-              Lokální workspace<span>Osobní prostředí</span>
+              {t("Local workspace")}
+              <span>{t("Personal space")}</span>
             </div>
             <span className="square-dot" />
           </div>
@@ -207,26 +210,29 @@ export default function App({
         <header className="topbar">
           {navigation}
           <div className="breadcrumb" hidden={!!navigation}>
-            <span>Workspace</span>
+            <span>{t("Workspace")}</span>
             <ChevronRight size={12} />
-            <strong>Přehled</strong>
+            <strong>{t("Overview")}</strong>
           </div>
           <div className="mode-label">
             <span className="square-dot" />
-            {demo ? "UKÁZKOVÝ REPOZITÁŘ" : "LOKÁLNÍ REŽIM"}
+            {demo ? t("DEMO REPOSITORY") : t("LOCAL MODE")}
           </div>
         </header>
         <main id="workspace">
           <div className="page-heading enter">
             <div>
-              <div className="eyebrow">MÉNĚ ŠUMU. VÍCE SOUSTŘEDĚNÍ.</div>
+              <div className="eyebrow">{t("LESS NOISE. MORE FOCUS.")}</div>
               <h1>
-                Prostor pro vaši práci<span>.</span>
+                {t("Space for your work")}
+                <span>.</span>
               </h1>
-              <p>Váš repozitář. Vše podstatné na jednom místě.</p>
+              <p>
+                {t("Your repository. Everything that matters in one place.")}
+              </p>
             </div>
             <span className="edition">
-              LOCAL EDITION
+              {t("LOCAL EDITION")}
               <br />
               <b>001 — WORKSPACE</b>
             </span>
@@ -236,8 +242,8 @@ export default function App({
             <div className="browser-note">
               <span>
                 <Circle size={12} />{" "}
-                {demo ? "Prohlížíte ukázková data." : "Webový náhled rozhraní."}{" "}
-                Lokální repozitář připojíte v desktopové aplikaci.
+                {demo ? t("You are viewing demo data.") : t("Browser preview.")}{" "}
+                {t("Connect a local repository in the desktop app.")}
               </span>
             </div>
           )}
@@ -245,15 +251,15 @@ export default function App({
             <div className="error-banner" role="alert">
               <X size={17} />
               <div>
-                <strong>Repozitář se nepodařilo načíst.</strong>
-                <p>{error}</p>
+                <strong>{t("Could not load the repository.")}</strong>
+                <p>{t(error)}</p>
                 {state.snapshot && (
-                  <span>Zobrazen je poslední známý stav.</span>
+                  <span>{t("Showing the last known state.")}</span>
                 )}
               </div>
               <button
                 className="icon-button"
-                aria-label="Zkusit znovu"
+                aria-label={t("Try again")}
                 onClick={state.refresh}
                 disabled={state.busy}
               >
@@ -269,7 +275,7 @@ export default function App({
                   <FolderGit2 size={25} strokeWidth={1.3} />
                 </div>
                 <div className="repo-identity">
-                  <div className="eyebrow">AKTIVNÍ REPOZITÁŘ</div>
+                  <div className="eyebrow">{t("ACTIVE REPOSITORY")}</div>
                   <h2>{repo.name}</h2>
                   <span className="mono repo-path" title={repo.root}>
                     {repo.root}
@@ -284,12 +290,16 @@ export default function App({
                           : "square-dot live-dot"
                       }
                     />
-                    {demo ? "Ukázka" : error ? "Neaktuální stav" : "Připojeno"}
+                    {demo
+                      ? t("Demo")
+                      : error
+                        ? t("Out of date")
+                        : t("Connected")}
                   </span>
                   <button
                     className="icon-button"
-                    title="Obnovit stav"
-                    aria-label="Obnovit stav"
+                    title={t("Refresh status")}
+                    aria-label={t("Refresh status")}
                     disabled={demo || state.busy}
                     onClick={state.refresh}
                   >
@@ -297,8 +307,8 @@ export default function App({
                   </button>
                   <button
                     className="icon-button"
-                    title="Odpojit repozitář"
-                    aria-label="Odpojit repozitář"
+                    title={t("Disconnect repository")}
+                    aria-label={t("Disconnect repository")}
                     onClick={disconnect}
                   >
                     <Unplug size={16} />
@@ -309,7 +319,7 @@ export default function App({
               <div className="metrics">
                 <section className="metric">
                   <div className="metric-label">
-                    <span>AKTUÁLNÍ VĚTEV</span>
+                    <span>{t("CURRENT BRANCH")}</span>
                     <GitBranch size={16} />
                   </div>
                   <div className="branch-value" title={repo.branch}>
@@ -317,35 +327,36 @@ export default function App({
                   </div>
                   <div className="metric-foot">
                     {repo.detached
-                      ? "Pracujete mimo pojmenovanou větev"
-                      : "Váš aktuální pracovní kontext"}
+                      ? t("Working outside a named branch")
+                      : t("Your current working context")}
                   </div>
                 </section>
                 <section className="metric">
                   <div className="metric-label">
-                    <span>LOKÁLNÍ ZMĚNY</span>
+                    <span>{t("LOCAL CHANGES")}</span>
                     <FileCode2 size={16} />
                   </div>
                   <div className="metric-number">
                     {String(repo.files.length).padStart(2, "0")}
-                    <span>souborů</span>
+                    <span>{t("files")}</span>
                   </div>
                   <div className="metric-foot">
-                    <span className="tiny-line" /> {unstaged} s nepřipravenými
-                    změnami
+                    <span className="tiny-line" /> {unstaged}{" "}
+                    {t("with unstaged changes")}
                   </div>
                 </section>
                 <section className="metric">
                   <div className="metric-label">
-                    <span>PŘIPRAVENO KE COMMITU</span>
+                    <span>{t("STAGED FOR COMMIT")}</span>
                     <GitCommitHorizontal size={17} />
                   </div>
                   <div className="metric-number">
                     {String(staged).padStart(2, "0")}
-                    <span>souborů</span>
+                    <span>{t("files")}</span>
                   </div>
                   <div className="metric-foot">
-                    <span className="tiny-line filled" /> Změny v indexu
+                    <span className="tiny-line filled" />{" "}
+                    {t("Changes in the index")}
                   </div>
                 </section>
               </div>
@@ -353,18 +364,18 @@ export default function App({
               <section className="changes-panel">
                 <div className="section-heading">
                   <h3>
-                    Změněné soubory{" "}
+                    {t("Changed files")}{" "}
                     <span className="count">{repo.files.length}</span>
                   </h3>
-                  <span className="eyebrow subtle">WORKING TREE</span>
+                  <span className="eyebrow subtle">{t("WORKING TREE")}</span>
                 </div>
                 <div className="table-toolbar">
-                  <div className="tabs" aria-label="Filtrovat změny">
+                  <div className="tabs" aria-label={t("Filter changes")}>
                     {(
                       [
-                        ["all", "Vše", repo.files.length],
-                        ["staged", "Připravené", staged],
-                        ["unstaged", "Nepřipravené", unstaged],
+                        ["all", t("All"), repo.files.length],
+                        ["staged", t("Staged"), staged],
+                        ["unstaged", t("Unstaged"), unstaged],
                       ] as const
                     ).map(([value, label, count]) => (
                       <button
@@ -381,14 +392,14 @@ export default function App({
                   <label className="search">
                     <Search size={14} />
                     <input
-                      aria-label="Hledat soubor"
-                      placeholder="Hledat soubor…"
+                      aria-label={t("Search files")}
+                      placeholder={t("Search files…")}
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
                     />
                     {query && (
                       <button
-                        aria-label="Vymazat hledání"
+                        aria-label={t("Clear search")}
                         onClick={() => setQuery("")}
                       >
                         <X size={13} />
@@ -400,9 +411,9 @@ export default function App({
                   <table className="file-table">
                     <thead>
                       <tr>
-                        <th>SOUBOR</th>
-                        <th>INDEX</th>
-                        <th>PRACOVNÍ KOPIE</th>
+                        <th>{t("FILE")}</th>
+                        <th>{t("INDEX")}</th>
+                        <th>{t("WORKING COPY")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -417,7 +428,9 @@ export default function App({
                                   <small>← {file.originalPath}</small>
                                 )}
                                 {file.conflicted && (
-                                  <small>Konflikt vyžaduje vyřešení</small>
+                                  <small>
+                                    {t("Conflict needs resolution")}
+                                  </small>
                                 )}
                               </div>
                             </div>
@@ -427,7 +440,7 @@ export default function App({
                               className={`status-badge ${[".", "?"].includes(file.indexStatus) ? "empty-status" : ""}`}
                             >
                               {file.conflicted
-                                ? "Konflikt"
+                                ? t("Conflict")
                                 : statusLabel(
                                     file.indexStatus === "?"
                                       ? "."
@@ -440,7 +453,7 @@ export default function App({
                               className={`status-badge ${file.worktreeStatus === "." ? "empty-status" : ""}`}
                             >
                               {file.conflicted
-                                ? "Konflikt"
+                                ? t("Conflict")
                                 : statusLabel(file.worktreeStatus)}
                             </span>
                           </td>
@@ -458,23 +471,25 @@ export default function App({
                     )}
                     <strong>
                       {repo.files.length
-                        ? "Žádné odpovídající soubory"
-                        : "Čistý pracovní strom"}
+                        ? t("No matching files")
+                        : t("Clean working tree")}
                     </strong>
                     <span>
                       {repo.files.length
-                        ? "Zkuste jiný filtr nebo hledaný výraz."
-                        : "Vše je uložené v Gitu. Prostor pro další nápad."}
+                        ? t("Try another filter or search term.")
+                        : t(
+                            "Everything is saved in Git. Room for your next idea.",
+                          )}
                     </span>
                   </div>
                 )}
                 <div className="table-footer">
                   <span>
                     <span className="square-dot muted-dot" />
-                    {demo ? "Ukázková data" : "Automatická obnova každé 2 s"}
+                    {demo ? t("Demo data") : t("Auto-refresh every 2 seconds")}
                   </span>
                   <span>
-                    {files.length} / {repo.files.length} souborů
+                    {files.length} / {repo.files.length} {t("files")}
                   </span>
                 </div>
               </section>
@@ -482,7 +497,7 @@ export default function App({
               <section className="commit-panel">
                 <div className="commit-label">
                   <GitCommitHorizontal size={19} />
-                  <span>POSLEDNÍ COMMIT</span>
+                  <span>{t("LATEST COMMIT")}</span>
                 </div>
                 {repo.commit ? (
                   <>
@@ -492,7 +507,7 @@ export default function App({
                         {repo.commit.author}
                         <span>·</span>
                         {new Date(repo.commit.authoredAt).toLocaleString(
-                          "cs-CZ",
+                          dateLocale(),
                           {
                             day: "numeric",
                             month: "short",
@@ -508,8 +523,8 @@ export default function App({
                   </>
                 ) : (
                   <div className="commit-details">
-                    <h3>Každý projekt má svůj začátek.</h3>
-                    <p>V tomto repozitáři zatím není žádný commit.</p>
+                    <h3>{t("Every project starts somewhere.")}</h3>
+                    <p>{t("This repository has no commits yet.")}</p>
                   </div>
                 )}
               </section>
@@ -517,7 +532,7 @@ export default function App({
           ) : (
             <section className="empty-workspace enter">
               <div className="empty-top">
-                <span className="eyebrow">01 / PŘIPOJENÍ</span>
+                <span className="eyebrow">{t("01 / CONNECT")}</span>
                 <span className="crosshair">+</span>
               </div>
               <div className="empty-art" aria-hidden="true">
@@ -533,16 +548,17 @@ export default function App({
               </div>
               <div className="empty-copy">
                 <span className="eyebrow">
-                  VAŠE DALŠÍ DOBRÁ MYŠLENKA ZAČÍNÁ TADY
+                  {t("YOUR NEXT GREAT IDEA STARTS HERE")}
                 </span>
                 <h2>
                   {state.busy
-                    ? "Načítám váš prostor…"
-                    : "Velké věci začínají lokálně."}
+                    ? t("Loading your workspace…")
+                    : t("Great things start locally.")}
                 </h2>
                 <p>
-                  Připojte svůj Git repozitář a mějte přehled
-                  <br />o větvi, commitech a každé změně.
+                  {t("Connect your Git repository to keep track")}
+                  <br />
+                  {t("of branches, commits, and every change.")}
                 </p>
                 {desktop ? (
                   chooseButton
@@ -551,22 +567,22 @@ export default function App({
                     className="button primary"
                     onClick={() => setDemo(true)}
                   >
-                    <LayoutGrid size={15} /> Prohlédnout ukázku{" "}
+                    <LayoutGrid size={15} /> {t("View demo")}{" "}
                     <ArrowUpRight size={15} />
                   </button>
                 )}
                 {path && (
                   <button className="text-button" onClick={disconnect}>
-                    Zrušit připojení
+                    {t("Cancel connection")}
                   </button>
                 )}
               </div>
               <div className="empty-bottom">
                 <span>
-                  <ShieldCheck size={14} /> Pouze na vašem zařízení
+                  <ShieldCheck size={14} /> {t("Only on your device")}
                 </span>
                 <span>
-                  VÁŠ WORKFLOW ZŮSTÁVÁ VÁŠ <ArrowDownRight size={15} />
+                  {t("YOUR WORKFLOW STAYS YOURS")} <ArrowDownRight size={15} />
                 </span>
               </div>
             </section>
@@ -574,16 +590,21 @@ export default function App({
 
           <footer className="page-footer">
             <span>
-              <Mark small /> BUILT FOR FOCUS.
+              <Mark small /> {t("BUILT FOR FOCUS.")}
             </span>
             <span>
               {demo
-                ? "DEMO / NÁHLED"
+                ? t("DEMO / PREVIEW")
                 : state.updatedAt
-                  ? `POSLEDNÍ ${state.error ? "ÚSPĚŠNÁ " : ""}OBNOVA ${clock(state.updatedAt)}`
+                  ? t(
+                      state.error
+                        ? "LAST SUCCESSFUL REFRESH {time}"
+                        : "LAST REFRESH {time}",
+                      { time: clock(state.updatedAt) },
+                    )
                   : "DIGITA / V 0.1.0"}
               <Minus size={16} />
-              <span>LOCAL FIRST</span>
+              <span>{t("LOCAL FIRST")}</span>
             </span>
           </footer>
         </main>

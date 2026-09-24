@@ -32,18 +32,20 @@ describe("workspace", () => {
   it("clearly labels the browser demo, filters files and returns to the empty state", () => {
     mocks.desktop.mockReturnValue(false);
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /Prohlédnout ukázku/ }));
-    expect(screen.getByText("UKÁZKOVÝ REPOZITÁŘ")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /View demo/ }));
+    expect(screen.getByText("DEMO REPOSITORY")).toBeTruthy();
     expect(screen.getByText("src/styles/workspace.css")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^Připravené/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Staged/ }));
     expect(screen.queryByText("src/styles/workspace.css")).toBeNull();
     expect(screen.getByText("src/components/Workspace.tsx")).toBeTruthy();
-    fireEvent.change(screen.getByRole("textbox", { name: "Hledat soubor" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "Search files" }), {
       target: { value: "missing" },
     });
-    expect(screen.getByText("Žádné odpovídající soubory")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Odpojit repozitář" }));
-    expect(screen.getByText("Velké věci začínají lokálně.")).toBeTruthy();
+    expect(screen.getByText("No matching files")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Disconnect repository" }),
+    );
+    expect(screen.getByText("Great things start locally.")).toBeTruthy();
     expect(mocks.invoke).not.toHaveBeenCalled();
   });
 
@@ -57,7 +59,7 @@ describe("workspace", () => {
     render(<App />);
     await act(async () => {
       fireEvent.click(
-        screen.getByRole("button", { name: "Připojit repozitář" }),
+        screen.getByRole("button", { name: "Connect repository" }),
       );
     });
     expect(mocks.open).toHaveBeenCalledWith(
@@ -70,8 +72,10 @@ describe("workspace", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
-    expect(screen.getByText("Čistý pracovní strom")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Odpojit repozitář" }));
+    expect(screen.getByText("Clean working tree")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Disconnect repository" }),
+    );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(6000);
     });
@@ -84,26 +88,26 @@ describe("workspace", () => {
     mocks.open.mockResolvedValue("/project");
     mocks.invoke
       .mockResolvedValueOnce(demoRepository)
-      .mockRejectedValueOnce("Složka není dostupná.")
+      .mockRejectedValueOnce("The folder is unavailable.")
       .mockResolvedValue(demoRepository);
     render(<App />);
     await act(async () => {
       fireEvent.click(
-        screen.getByRole("button", { name: "Připojit repozitář" }),
+        screen.getByRole("button", { name: "Connect repository" }),
       );
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
     expect(screen.getByRole("alert").textContent).toContain(
-      "poslední známý stav",
+      "last known state",
     );
     expect(screen.getByText("src/styles/workspace.css")).toBeTruthy();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByText("Připojeno")).toBeTruthy();
+    expect(screen.getByText("Connected")).toBeTruthy();
   });
 
   it("does not connect when the directory picker is cancelled", async () => {
@@ -112,10 +116,10 @@ describe("workspace", () => {
     render(<App />);
     await act(async () => {
       fireEvent.click(
-        screen.getByRole("button", { name: "Připojit repozitář" }),
+        screen.getByRole("button", { name: "Connect repository" }),
       );
     });
     expect(mocks.invoke).not.toHaveBeenCalled();
-    expect(screen.getByText("Velké věci začínají lokálně.")).toBeTruthy();
+    expect(screen.getByText("Great things start locally.")).toBeTruthy();
   });
 });

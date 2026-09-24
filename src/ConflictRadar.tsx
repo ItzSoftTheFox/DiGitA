@@ -1,3 +1,4 @@
+import { t, useTranslation } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
@@ -16,6 +17,7 @@ export function ConflictRadar({
   userId: string;
   presence: Presence | null;
 }) {
+  useTranslation();
   const [notifications, setNotifications] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -70,12 +72,14 @@ export function ConflictRadar({
         // Await the plugin command: its JS Notification constructor discards failures.
         void invoke("plugin:notification|notify", {
           options: {
-            title: "DiGitA · Conflict Radar",
-            body: "Vaše změny se překrývají s prací kolegů. Podrobnosti najdete v místnosti.",
+            title: t("DiGitA · Conflict Radar"),
+            body: t(
+              "Your changes overlap with your teammates' work. See the room for details.",
+            ),
           },
         }).catch(() => {
           setError(
-            "Systémové upozornění se nepodařilo zobrazit. Radar v aplikaci zůstává dostupný.",
+            "Could not show a system notification. The in-app radar is still available.",
           );
         });
       },
@@ -98,11 +102,11 @@ export function ConflictRadar({
       setNotifications(granted);
       if (!granted)
         setError(
-          "Systémová upozornění nejsou povolená. Varování uvidíte zde v místnosti.",
+          "System notifications are not allowed. Warnings remain visible in this room.",
         );
     } catch {
       setError(
-        "Systémová upozornění nejsou dostupná. Varování uvidíte zde v místnosti.",
+        "System notifications are unavailable. Warnings remain visible in this room.",
       );
     } finally {
       setBusy(false);
@@ -117,7 +121,7 @@ export function ConflictRadar({
     <section className="conflict-radar" aria-labelledby="radar-heading">
       <div className="radar-heading">
         <h2 id="radar-heading">
-          <Radar size={20} /> Conflict Radar{" "}
+          <Radar size={20} /> {t("Conflict Radar")}{" "}
           <span className="count">{conflicts.length}</span>
         </h2>
         {isTauri() && (
@@ -127,14 +131,15 @@ export function ConflictRadar({
             onClick={() => void toggleNotifications()}
           >
             {notifications
-              ? "Vypnout systémová upozornění"
-              : "Zapnout systémová upozornění"}
+              ? t("Disable system notifications")
+              : t("Enable system notifications")}
           </button>
         )}
       </div>
       <p className="muted">
-        Stejný soubor u více lidí znamená možné riziko, ne potvrzený Git
-        konflikt. Porovnáváme jen sdílené názvy souborů.
+        {t(
+          "Changes to the same file indicate a possible risk, not a confirmed Git conflict. Only shared file names are compared.",
+        )}
       </p>
       <p
         aria-live="polite"
@@ -142,20 +147,27 @@ export function ConflictRadar({
         className={conflicts.length ? "radar-summary" : "muted"}
       >
         {!connected
-          ? "Radar čeká na spojení. Aktuální překryvy nelze ověřit."
+          ? t(
+              "Radar is waiting for a connection. Current overlaps cannot be checked.",
+            )
           : conflicts.length
-            ? `Soubory se souběžnými změnami: ${conflicts.length}. Z toho ve vaší práci: ${mine.length}.`
-            : "Ve sdílených souborech nyní není zjištěný překryv."}
+            ? t(
+                "Files with overlapping changes: {count}. In your work: {mine}.",
+                { count: conflicts.length, mine: mine.length },
+              )
+            : t("No overlap detected in the shared files right now.")}
       </p>
       {connected && (
         <p className="muted">
-          Názvy souborů sdílí {sharingCount} z {state.members.length} online
-          členů. Skryté nebo příliš velké seznamy nelze porovnat.
+          {t(
+            "File names shared by {sharing} of {total} online members. Hidden or oversized lists cannot be compared.",
+            { sharing: sharingCount, total: state.members.length },
+          )}
         </p>
       )}
       {error && (
         <p role="alert" className="muted">
-          {error}
+          {t(error)}
         </p>
       )}
       <ul className="conflict-list">
@@ -166,13 +178,15 @@ export function ConflictRadar({
               {c.user_ids
                 .map((id) =>
                   id === userId
-                    ? `${names.get(id) ?? "Člen"} (vy)`
-                    : (names.get(id) ?? "Člen"),
+                    ? `${names.get(id) ?? t("Member")} ${t("(you)")}`
+                    : (names.get(id) ?? t("Member")),
                 )
                 .join(", ")}
             </span>
             <p className="muted">
-              Domluvte se, zda upravujete stejnou část souboru.
+              {t(
+                "Check with your teammates whether you are editing the same part of the file.",
+              )}
             </p>
           </li>
         ))}

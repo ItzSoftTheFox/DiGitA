@@ -11,10 +11,10 @@ if (
     ["localhost", "127.0.0.1", "[::1]"].includes(address.hostname)
   )
 ) {
-  throw new Error("Server musí používat HTTPS.");
+  throw new Error("The server must use HTTPS.");
 }
 if (address.username || address.password || address.search || address.hash)
-  throw new Error("Neplatná adresa serveru.");
+  throw new Error("Invalid server address.");
 
 export type User = { id: string; email: string; display_name: string };
 export type Team = { id: string; name: string };
@@ -53,7 +53,7 @@ export async function api<T>(
       response.status,
       typeof data.detail === "string"
         ? data.detail
-        : "Zkontrolujte zadané údaje.",
+        : "Check the entered details.",
     );
   }
   return response.status === 204

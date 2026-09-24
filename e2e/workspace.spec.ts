@@ -5,9 +5,9 @@ test("browser preview, filtering and layouts", async ({ page }) => {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Lokální režim" }).click();
+  await page.getByRole("button", { name: "Local mode" }).click();
   await expect(
-    page.getByRole("heading", { name: "Velké věci začínají lokálně." }),
+    page.getByRole("heading", { name: "Great things start locally." }),
   ).toBeVisible();
   await page.screenshot({
     path: "artifacts/workspace-empty.png",
@@ -15,25 +15,25 @@ test("browser preview, filtering and layouts", async ({ page }) => {
     animations: "disabled",
   });
   // The fixed sidebar must not cover navigation back to online mode.
-  await page.getByRole("button", { name: "Přihlásit se online" }).click();
+  await page.getByRole("button", { name: "Sign in online" }).click();
   await expect(
-    page.getByRole("heading", { name: "Přihlásit se", exact: true }),
+    page.getByRole("heading", { name: "Sign in", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Lokální režim" }).click();
-  await page.getByRole("button", { name: "Prohlédnout ukázku" }).click();
-  await expect(page.getByText("UKÁZKOVÝ REPOZITÁŘ")).toBeVisible();
+  await page.getByRole("button", { name: "Local mode" }).click();
+  await page.getByRole("button", { name: "View demo" }).click();
+  await expect(page.getByText("DEMO REPOSITORY")).toBeVisible();
   await expect(page.locator("tbody tr")).toHaveCount(4);
   await page.screenshot({
     path: "artifacts/workspace-desktop.png",
     fullPage: true,
     animations: "disabled",
   });
-  await page.getByRole("button", { name: /^Připravené/ }).click();
+  await page.getByRole("button", { name: /^Staged/ }).click();
   await expect(page.locator("tbody tr")).toHaveCount(1);
-  await page.getByRole("textbox", { name: "Hledat soubor" }).fill("nothing");
-  await expect(page.getByText("Žádné odpovídající soubory")).toBeVisible();
-  await page.getByRole("button", { name: "Vymazat hledání" }).click();
-  await page.getByRole("button", { name: /^Vše/ }).click();
+  await page.getByRole("textbox", { name: "Search files" }).fill("nothing");
+  await expect(page.getByText("No matching files")).toBeVisible();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await page.getByRole("button", { name: /^All/ }).click();
   for (const width of [1200, 760, 390]) {
     await page.setViewportSize({ width, height: 900 });
     expect(
@@ -47,13 +47,13 @@ test("browser preview, filtering and layouts", async ({ page }) => {
     fullPage: true,
     animations: "disabled",
   });
-  await page.getByRole("button", { name: "Odpojit repozitář" }).click();
+  await page.getByRole("button", { name: "Disconnect repository" }).click();
   await expect(
-    page.getByRole("heading", { name: "Velké věci začínají lokálně." }),
+    page.getByRole("heading", { name: "Great things start locally." }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Přihlásit se online" }).click();
+  await page.getByRole("button", { name: "Sign in online" }).click();
   await expect(
-    page.getByRole("heading", { name: "Přihlásit se", exact: true }),
+    page.getByRole("heading", { name: "Sign in", exact: true }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -61,7 +61,7 @@ test("browser preview, filtering and layouts", async ({ page }) => {
 test("respects reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Lokální režim" }).click();
+  await page.getByRole("button", { name: "Local mode" }).click();
   expect(
     await page
       .locator(".orbit-two")

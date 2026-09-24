@@ -468,3 +468,26 @@
   accent-color: #ddd;
   width: 110px;
 }
+
+.language-settings-button {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 20;
+  background: #171717;
+  box-shadow: 0 4px 20px #0008;
+}
+.language-settings {
+  width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid #444;
+  border-radius: 12px;
+  background: #171717;
+  color: #ededed;
+}
+.language-settings::backdrop { background: #000b; }
+.language-settings header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.language-settings h2 { margin: 0; }
+.language-settings label { display: block; margin-bottom: 8px; }
+.language-settings select { width: 100%; padding: 10px; background: #222; color: inherit; border: 1px solid #666; border-radius: 4px; }
+.language-settings p { font-size: 14px; line-height: 1.6; color: #bbb; }

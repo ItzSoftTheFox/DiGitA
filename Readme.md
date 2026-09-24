@@ -26,7 +26,7 @@
 ## Screenshots
 
 Actual application UI, captured in the browser with demo/test accounts and
-repositories. The interface is currently in Czech. Click any image for full size.
+repositories. The interface defaults to English; Czech is available in Settings → Language. Click any image for full size.
 
 ### Your local workspace
 
@@ -61,13 +61,16 @@ Room-wide play/pause with personal listening controls and independent volume.
 
 ## Project status
 
-**Phases 1–5 implemented for the local prototype: Git workspace, accounts, live collaboration, Conflict Radar, and ambient rooms.**
+**0.1.0 development pilot. Current distribution priority: Arch Linux x86_64.**
 
 The desktop includes registration/login, a dashboard of teams and rooms, invitations, online presence, optional Git metadata sharing, and a live timeline. The local Git workspace remains available without signing in. The native application passes `cargo check`, builds, and displays its interface on Arch Linux with Wayland.
 
 FastAPI provides accounts, team permissions, single-use invitations, and authenticated WebSocket rooms. PostgreSQL stores account/team data; active presence, conflict warnings, ambient playback, and the last 100 room events live in server memory. Validation is described below.
 
-The current application UI is in Czech. Release preparation is the next planned phase.
+English is the default application language; Czech is available in **Settings → Language**. An Arch pilot package and a separate
+HTML + Tailwind download website are prepared. Work toward 0.2.0 starts with
+regression checks and native pilot validation; it is not a finished release.
+See the [current validation record](docs/validation-0.2.0-phase-1.md).
 
 ## Current features
 
@@ -100,20 +103,21 @@ alongside members, activity, Conflict Radar, and ambient audio. Users can
 return to the dashboard to switch rooms. In this UX, a "server" means a team space;
 selecting multiple backend hosts is a separate future feature.
 
-| Phase | Focus                | Planned outcome                                                                                        | Status      |
-| ----- | -------------------- | ------------------------------------------------------------------------------------------------------ | ----------- |
-| 1     | Local prototype      | Desktop window, repository selection, Git overview, automatic refresh, and native validation           | Complete    |
-| 2     | Backend and accounts | FastAPI service, database schema, registration, authentication, teams, and rooms                       | Complete    |
-| 3     | Live collaboration   | WebSocket connection, online presence, shared Git metadata, and a project event timeline               | Complete    |
-| 4     | Conflict Radar       | Detect overlapping file changes, update warnings, add notifications, and suppress duplicate alerts     | Implemented |
-| 5     | Ambient rooms        | One licensed audio track, synchronized playback, individual volume, and reconnect recovery             | Implemented |
-| 6     | Release readiness    | Broader automated testing, Docker Compose, CI, installers, documentation, and the first public release | Planned     |
+The original prototype phases delivered the features above. The next milestone,
+**0.2.0**, is organized into seven phases:
 
-Future ideas include GitHub/GitLab integrations, pull request and CI status,
-multiple ambient layers, editor plugins, and self-hosted servers. The UX backlog
-also includes switching among multiple local projects, profile customization,
-an administration dashboard, text/voice channels, and Git history/branch controls.
-These additions are not part of the implemented phases; Git remains read-only.
+1. Verify 0.1.0, fix blocking defects, and update documentation.
+2. Improve first launch, connection states, and error recovery.
+3. Separate Settings from the dashboard and refine navigation/UI.
+4. Remember local projects and preferences without restoring sharing consent.
+5. Add team administration and account personalization.
+6. Improve local Git status and bound Git process time/output.
+7. Validate the complete pilot and packaging on Arch Linux.
+
+Windows/macOS and broader Linux releases are tentatively deferred to **0.5.0**.
+Profile customization, saved projects, and the new Settings screen are planned,
+not implemented. Chat, voice, the admin dashboard, automatic updates, and Git
+write operations are outside the 0.2.0 scope.
 
 ### MVP target
 
@@ -134,7 +138,7 @@ Conflict Radar indicates potential overlap; it does not guarantee that Git will 
 | Database           | PostgreSQL and Alembic                  | Implemented; migrations verified                 |
 | Realtime transport | WebSocket                               | Implemented; authenticated room connections      |
 | Local persistence  | SQLite                                  | Planned                                          |
-| Infrastructure     | Docker Compose and GitHub Actions       | Local PostgreSQL Compose implemented; CI planned |
+| Infrastructure     | Docker Compose and GitHub Actions       | Local PostgreSQL Compose; hosted workflows paused |
 
 ## How the pieces connect
 
@@ -150,7 +154,7 @@ flowchart LR
 
 Each member keeps their own repository and uses their normal Git remote to
 exchange code. DiGitA does not upload or synchronize repository contents.
-The future public portfolio/download website is separate from the collaboration
+The HTML + Tailwind portfolio/download website is separate from the collaboration
 API; that API must remain reachable while people use shared rooms.
 
 ## Getting started
@@ -160,7 +164,7 @@ API; that API must remain reachable while people use shared rooms.
 - Node.js 22 or newer and npm.
 - Git installed and available on `PATH`.
 - Rust and Cargo for the desktop application and Git tests.
-- Python 3.12+, uv, and Docker Compose for the collaboration backend.
+- Python 3.12+, uv, and Docker Compose only when running your own local backend.
 - The [Tauri system prerequisites](https://v2.tauri.app/start/prerequisites/) for your operating system.
 
 On Arch Linux, install the native dependencies with:
@@ -178,21 +182,31 @@ npm ci
 npm run tauri dev
 ```
 
-Keep the desktop command running in a separate terminal from the backend.
-Start the backend below for collaboration, then register or log in. Create a team
-and room, enter it, and choose **Připojit repozitář** (Connect repository). Each
+By default the client uses the local API at `http://127.0.0.1:8000`; start it below
+in a separate terminal. To use the existing pilot instead, set the root `.env` to
+`VITE_API_URL=https://digita-hvse.onrender.com` and restart the desktop dev command.
+The development CSP already permits this pilot. You then need no local Python,
+PostgreSQL, or backend process. Pilot registration may be closed; use an existing
+pilot account. A team invitation does not create an account.
+
+For a downloadable build connected to the pilot, follow the
+[Arch package guide](docs/arch-linux.md); its script sets both the embedded API URL
+and the production CSP. A plain `tauri build` uses the base local-only CSP.
+
+Register or log in to your selected backend. Create a team
+and room, enter it, and choose **Connect repository**. Each
 member selects their own working copy and confirms it belongs to the room before
 enabling sharing. A room represents one logical project; remote URLs are not
 automatically matched. Change the sharing checkboxes to permit individual fields.
 
-For offline use, choose **Lokální režim** (Local mode) on the login screen.
-Use **Přihlásit se online** in the workspace header to return to login, or
-**Zpět do týmového prostoru** if you are already signed in. On the dashboard,
-**Obnovit místnosti** reloads your teams, rooms, and permissions.
+For offline use, choose **Local mode** on the login screen.
+Use **Sign in online** in the workspace header to return to login, or
+**Back to team space** if you are already signed in. On the dashboard,
+**Refresh rooms** reloads your teams, rooms, and permissions.
 Selecting a repository subdirectory also works. Edit a file in your usual editor
 and the overview refreshes automatically. Changing rooms or repositories resets
 sharing consent. Linux session persistence requires an unlocked Secret Service
-keyring; leave **Zapamatovat přihlášení** unchecked to use an in-memory session.
+keyring; leave **Remember sign-in in the system credential store** unchecked to use an in-memory session.
 
 ### Browser preview
 
@@ -202,18 +216,18 @@ npm run dev
 ```
 
 Open `http://127.0.0.1:1420`. Login and rooms use the running backend. For the
-static Git demo, choose **Lokální režim**, then **Prohlédnout ukázku** (View demo).
-Access to a real local repository requires the desktop application. The eventual
-public website will be a separate product page with download links.
+static Git demo, choose **Local mode**, then **View demo**.
+Access to a real local repository requires the desktop application. The separate
+public website lives in `website/` and builds into `docs/` for GitHub Pages.
 
 Stop the standalone preview server before running `npm run tauri dev`; both use port 1420.
 
-### Ambient room (Phase 5)
+### Ambient room
 
-Each live room includes **Společné prostředí** with a bundled 30-second soft-noise
-loop. Any current room member can use **Přehrát pro všechny** or
-**Pozastavit pro všechny**. Playback starts paused, and each person must separately
-choose **Zapnout můj poslech** to hear it. **Moje hlasitost** changes only that
+Each live room includes **Shared ambience** with a bundled 30-second soft-noise
+loop. Any current room member can use **Play for everyone** or
+**Pause for everyone**. Playback starts paused, and each person must separately
+choose **Start listening** to hear it. **My volume** changes only that
 client's volume (initially 25%). Listening and volume reset when leaving the room.
 
 The server sends playback metadata, never audio streams. The WAV is included in
@@ -235,14 +249,14 @@ to limit flapping. State resets after the last member leaves or the server resta
 
 For a two-device check: join the same room, enable listening on both devices,
 start playback, change one listener's volume, pause from the other device, and
-then test a disconnect/reconnect. Restart a running backend to load Phase 5.
+then test a disconnect/reconnect. Use matching client and backend versions.
 Actual sound output and autoplay behavior in Linux/Windows desktop WebViews
 still require this manual check; automated playback checks use Chromium.
 
-### Conflict Radar (Phase 4)
+### Conflict Radar
 
 Open the same room using two different accounts and connect each account's local
-working copy. Enable Git sharing and **Názvy souborů** on both clients. Change the
+working copy. Enable Git sharing and **File names** on both clients. Change the
 same relative path in both working copies: the radar lists the path and members
 after the next Git refresh. No commit or push is required. Remove one change or
 disable file sharing: the warning disappears. Leaving, revocation, and network
@@ -260,7 +274,7 @@ and `conflict.resolved` events contain no paths or participant lists. Each event
 type is batched and limited to once per 30 seconds per room; the live warning list
 always updates immediately, even when a timeline event is suppressed.
 
-**Zapnout systémová upozornění** enables native notifications for the current room
+**Enable system notifications** enables native notifications for the current room
 visit after an OS permission check. Notifications concern only the current user's
 new overlaps, contain no file/member/project names, wait 1.5 seconds to group bursts,
 and occur at most once per 30 seconds. Resolved or withdrawn warnings cancel pending
@@ -399,6 +413,11 @@ the ignored `artifacts/` directory.
 
 Rust dependency versions are recorded in `src-tauri/Cargo.lock` and `crates/git-presence/Cargo.lock` for reproducible application builds and Git tests.
 
+### Current validation
+
+See [0.2.0 phase 1 — results and native checklist](docs/validation-0.2.0-phase-1.md).
+The dated results below are historical and do not validate later changes.
+
 ### Native validation (2026-09-14)
 
 Verified on Arch Linux with Wayland and WebKitGTK 2.52.6:
@@ -464,7 +483,7 @@ commit hash, and only the optional metadata permitted by the user. It never send
 source code, diffs, absolute local paths, or commit authors. Hidden fields are also
 removed on the server. The timeline contains generic event descriptions, without
 file names, branch names, or commit messages. Session tokens are kept in memory
-or the OS credential store; web storage contains only a remember-login flag.
+or the OS credential store; web storage contains a remember-login flag and the language preference, never tokens.
 
 Team role changes, member removal/leaving, and invitation revocation are
 currently API operations; desktop administration controls are not implemented.
@@ -482,33 +501,49 @@ has been added yet; choose the application license before public distribution.
 - Native validation has been performed on Arch Linux only; other operating systems remain unverified.
 - Git changes are detected by polling. Large repositories can take longer to refresh, and Git processes currently have no timeout.
 - File names containing invalid UTF-8 are displayed with replacement characters.
-- Installer packaging is disabled during the prototype phase.
+- The base Tauri configuration disables bundling; the Arch script and release override enable distribution. The Arch pilot still needs clean-install validation.
 - Radar compares file paths only and cannot detect line-level or committed-branch overlaps.
 - Run one backend worker: room state and timeline are in memory and disappear after the last member leaves or the server restarts. A room supports up to 32 online users, with one active connection per user.
 - Git file lists above 500 entries or the payload budget share counts only. Project identity is confirmed by the user, not inferred from Git remote addresses.
 - A changed HEAD is shown as a changed last commit; it does not prove a new commit was created rather than checked out.
-- The backend is configured for local development; public deployment and multi-worker hardening remain part of release readiness. See the backend README for current limits.
+- Local development and Render/Neon pilot deployment configurations exist. Live provider configuration has not been re-audited in this phase; multi-worker operation is unsupported. See the backend README for current limits.
 
-### Bezpečnost webového pilotu
+### Pilot security
 
-[Bezpečnostní kontrola a podmínky nasazení](docs/security-review.md) obsahuje
-výsledky code review, regresních testů a kontroly závislostí před napojením providerů.
-Automatické kontroly jsou v `.github/workflows/security.yml`.
+The [security review and deployment requirements](docs/security-review.md)
+record code review, regression tests, and dependency checks before provider setup.
+Automated checks are defined in `.github/workflows/security.yml`, currently paused.
 
-### Desktopová distribuce
+### Desktop distribution
 
-Aplikace se distribuuje jako React + Tauri desktop. Veřejný web slouží pouze
-k prezentaci a stažení; backend zajišťuje účty a spolupráci. Postup pro Windows, macOS a Linux
-instalátory, GitHub Releases a nasazení API je v [desktop-release.md](docs/desktop-release.md).
+DiGitA is distributed as a React + Tauri desktop app. The public website provides
+product information and downloads; the backend provides accounts and collaboration.
+See [desktop-release.md](docs/desktop-release.md) for installer preparation,
+GitHub Releases, and API deployment.
 
-### Stažitelný balíček pro Arch Linux
+### Arch Linux package
 
-Aktuální priorita je **Arch Linux x86_64**. Lokální sestavení pomocí
-`bash scripts/build-arch.sh` vytvoří pacman balíček bez GitHub Actions.
-[Postup sestavení, instalace a distribuce](docs/arch-linux.md).
+The current priority is **Arch Linux x86_64**. Running
+`bash scripts/build-arch.sh` locally creates a pacman package without GitHub Actions.
+See [build, installation, and distribution](docs/arch-linux.md).
 
-### Prezentační web / GitHub Pages
+### Product website / GitHub Pages
 
-Samostatný web v HTML + Tailwind CSS obsahuje ukázky aplikace, FAQ a stažení
-Arch pilotu. Zdroj je v `website/`, hotový web v `docs/`.
-[Lokální náhled, úpravy a zapnutí GitHub Pages](website/README.md).
+A separate HTML + Tailwind website includes app previews, FAQ, and the Arch pilot
+download. Sources live in `website/`; built output lives in `docs/`.
+See [local preview, editing, and GitHub Pages setup](website/README.md).
+
+### Language policy
+
+Write project Markdown, new UI source strings, and website copy in English.
+The app starts in English regardless of the operating-system language. **Settings →
+Language → Čeština** switches the interface immediately and saves the choice on
+this device. It does not sign out, reconnect rooms, or restore sharing consent.
+Maintain Czech translations in `src/translations.cs.json`; use `t()` for UI text
+and `useTranslation()` in components that must update when the language changes.
+User names, repository paths, branch names, and commit contents are not translated.
+Backend/native messages use English; known messages are localized by the client.
+The website and documentation remain in English.
+
+Source changes do not replace an already built installer. The downloadable
+v0.1.0 archive still contains the earlier UI until a new package is validated.

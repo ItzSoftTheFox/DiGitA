@@ -1,12 +1,13 @@
-# DiGitA — prezentační web
+# DiGitA — product website
 
-Samostatné HTML + Tailwind CSS 4, malý JavaScript pro přepínání ukázek a animace.
-Žádné API, přihlašování, analytika ani externí fonty. Podporuje mobilní zobrazení,
-ovládání klávesnicí a `prefers-reduced-motion`.
+Standalone HTML + Tailwind CSS 4 with a small JavaScript file for previews and
+animations. English is the website's primary language. There is no API, login,
+analytics, or external font dependency. Mobile layouts, keyboard navigation,
+and `prefers-reduced-motion` are supported.
 
-## Úpravy a místní náhled
+## Editing and local preview
 
-Z kořene repozitáře:
+From the repository root:
 
 ```sh
 npm ci --prefix website
@@ -14,39 +15,49 @@ npm run build --prefix website
 python3 -m http.server 4174 --bind 127.0.0.1 --directory docs
 ```
 
-Otevřete http://127.0.0.1:4174. Editujte `website/index.html`, `styles.css`
-a `site.js`. Build uloží hotový web do `docs/index.html` a `docs/assets/`.
-Tyto výstupy se commitují společně se zdroji. Obrázky jsou v `docs/images/`.
-Build ověřuje SHA-256 přibaleného instalátoru a doplní jeho skutečnou velikost.
+Open http://127.0.0.1:4174. Edit `website/index.html`, `styles.css`, and `site.js`.
+The build writes `docs/index.html` and `docs/assets/`. Commit these outputs along
+with the sources. Images live in `docs/images/`. The build verifies the bundled
+installer's SHA-256 and inserts its actual size.
 
 ## GitHub Pages
 
-1. Commitněte a pushněte web včetně `docs/assets`, `docs/images`, `docs/downloads`
-   a `docs/.nojekyll` do `main`.
-2. V GitHub repozitáři otevřete **Settings → Pages**.
-3. V **Build and deployment → Source** vyberte **Deploy from a branch**.
-4. Nastavte větev **main**, složku **/docs** a klikněte **Save**.
-5. GitHub zobrazí adresu zveřejněného webu; pro tento repozitář je očekávaná
-   `https://itzsoftthefox.github.io/DiGitA/`.
+1. Commit and push the website, including `docs/assets`, `docs/images`,
+   `docs/downloads`, and `docs/.nojekyll`, to `main`.
+2. Open repository **Settings → Pages**.
+3. Under **Build and deployment → Source**, select **Deploy from a branch**.
+4. Select **main**, folder **/docs**, and **Save**.
+5. GitHub displays the published URL, expected to be
+   `https://itzsoftthefox.github.io/DiGitA/` for this repository.
 
-Pro bezplatné Pages na GitHub Free musí být repozitář veřejný. Web je předem
-sestavený; `.nojekyll` vypíná Jekyll. Není potřeba přidávat ani znovu zapínat
-vlastní Actions workflow pro build aplikace. Všechny místní cesty jsou relativní,
-takže web funguje i pod `/DiGitA/`.
+The intended setup uses a public repository and GitHub Free. Check the account's
+actual Pages availability before publishing. The website is prebuilt; `.nojekyll`
+disables Jekyll. No custom application-build Actions workflow needs enabling.
+Local asset paths are relative, so the website also works under `/DiGitA/`.
 
-Postup: [GitHub Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
+Reference: [GitHub Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 
-## Stažení
+## Downloads
 
-Pilotní Arch x86_64 balíček v0.1.0 je přímo v `docs/downloads/`, včetně SHA-256.
-Má přibližně 4.2 MiB. Web tedy neodkazuje na neexistující release asset.
-Balíček je nepodepsaný a instalace na čistém systému zatím nebyla ověřena;
-web ho zřetelně označuje jako vývojový pilot. [Instalace](../docs/arch-linux.md).
+The v0.1.0 Arch x86_64 pilot package and SHA-256 are stored in `docs/downloads/`.
+The archive is about 4.2 MiB; the site does not depend on an unpublished release
+asset. It is unsigned and has not been tested on a clean installation. The site
+labels it as a development pilot. See the [installation guide](../docs/arch-linux.md).
 
-Při nové verzi nahraďte soubor i kontrolní součet, aktualizujte název a verzi
-v `website/index.html` a `website/build.mjs`, potom spusťte build.
-Pro pravidelná vydání přesuňte binární soubory do veřejných GitHub Releases
-(až bude daný asset publikovaný) a změňte odkaz na jeho přesnou URL.
-Binaries ve větvi jsou nyní jen jednoduchá distribuce prvního pilotu.
+When releasing a new version, replace the archive and checksum, update the name
+and version in `website/index.html` and `website/build.mjs`, and rebuild.
+For regular releases, move binaries to public GitHub Releases after their assets
+are published and link the exact URLs. Binaries in the branch are a temporary
+way to distribute the first pilot.
 
-Windows a macOS jsou na webu označeny jako plánované, bez falešných downloadů.
+Windows and macOS are marked as planned, with no nonfunctional download links.
+The existing v0.1.0 archive predates the English-default UI; source changes do
+not update that binary. Rebuild and validate a package before replacing it.
+
+## Browser verification
+
+With the root application's E2E prerequisites installed, run
+`npm run test:e2e -- e2e/website.spec.ts` from the repository root. The test serves
+the generated files through Playwright's local request routing under `/DiGitA/`;
+it checks English content, previews, responsive layouts, reduced motion, and
+no-JavaScript access without a public deployment.

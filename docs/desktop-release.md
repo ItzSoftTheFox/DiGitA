@@ -4,12 +4,11 @@ Current scope: Linux first, primarily Arch x86_64. Use the [local Arch package
 build and installation guide](arch-linux.md). Windows/macOS distribution is deferred;
 the multi-platform workflow below is retained for later use.
 
-**Hosted CI is paused because of an unexpected billing charge.** Both workflow
-files now have manual triggers only and unconditional job skips. Publishing these
-changes prevents new jobs from allocating runners, but does not cancel existing
-runs or change older tags. Disable Actions in repository settings and cancel active
-runs on GitHub immediately. Do not rerun older workflows until billing is resolved.
-The release procedure below describes the intended flow after an explicit re-enable.
+**Hosted CI remains paused to avoid runner charges.** Both workflow files have
+manual triggers and unconditional job skips. The billing screenshot from the pilot
+showed $0.15 gross usage and $0 billed; gross usage was not evidence of a charge.
+Use local checks and the Arch build script for now. The multi-platform procedure
+below is a future reference and requires explicitly re-enabling the workflow.
 
 DiGitA is a React interface bundled inside a Tauri desktop application. The desktop
 reads local Git repositories and connects to a hosted FastAPI/PostgreSQL service.
@@ -20,7 +19,8 @@ The admin dashboard is a separate future service, not an implemented hidden rout
 ## Current deliverables
 
 - `.github/workflows/release.yml`: four native builds collected in one draft prerelease.
-  Trigger: a `v*` tag; manual dispatch must also select that tag.
+  Currently disabled. Its retained release checks require a matching `v*` tag;
+  pushing a tag does not currently trigger a build.
 
 | Platform | Architecture | Downloads |
 | --- | --- | --- |
@@ -35,14 +35,15 @@ partial draft: publish only after all four builds and installation checks succee
 Linux ARM and Windows ARM are not included.
 - `scripts/prepare-release.mjs`: validates the release version/API URL and produces
   an ignored Tauri override enabling the installer and allowing only the configured
-  API HTTPS/WSS origins. Development config remains local-only.
+  API HTTPS/WSS origins. The base production CSP remains local-only; devCsp also permits the current Render pilot.
 - `render.yaml`: free Python backend blueprint with desktop origins, closed
   registration, external PostgreSQL, migrations at startup and one API worker.
 - Existing quotas and cleanup remain active for desktop users.
 
-No provider resources or GitHub releases have been created by preparing these files.
-Installers must still be built on the hosted runners and tested on each supported
-system. Automatic updates, Windows signing and the admin dashboard are not implemented.
+The Render/Neon pilot was configured separately. This guide is not evidence of
+a published GitHub release or a current live-service audit. Multi-platform
+installers still need building and testing on their supported systems; the local
+Arch build does not need a hosted runner. Automatic updates, Windows signing and the admin dashboard are not implemented.
 The download website is now prepared separately in `website/` with output in `docs/`. Apple signing is wired but needs credentials.
 
 ## 1. Deploy backend and database
@@ -84,8 +85,9 @@ This public address is compiled into the installer; it is not a secret.
 
 Keep desktop versions equal in `package.json`, `src-tauri/tauri.conf.json`, and
 `src-tauri/Cargo.toml`; update the corresponding lockfiles when changing versions.
-After committing the intended release, push its matching tag (initially `v0.1.0`).
-The workflow runs frontend/native tests and builds platform-specific installers
+After a future explicit workflow re-enable, commit the intended release and
+select its matching tag. The retained workflow is designed to run frontend/native
+tests and build platform-specific installers
 into a **draft prerelease**. Review every job and test each installer before publishing.
 Do not rebuild a published tag; issue a new version instead.
 

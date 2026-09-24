@@ -1,3 +1,4 @@
+import { t, useTranslation, dateLocale } from "./i18n";
 import {
   useCallback,
   useEffect,
@@ -16,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import App from "./App";
+import { LanguageSettings } from "./LanguageSettings";
 import { AmbientPlayer } from "./AmbientPlayer";
 import { ConflictRadar } from "./ConflictRadar";
 import {
@@ -37,6 +39,16 @@ const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
 export default function DesktopApp() {
+  return (
+    <>
+      <DesktopContent />
+      <LanguageSettings />
+    </>
+  );
+}
+
+function DesktopContent() {
+  useTranslation();
   const [session, setSession] = useState<Session | null>(null);
   const [restoring, setRestoring] = useState(true);
   const [local, setLocal] = useState(false);
@@ -80,7 +92,7 @@ export default function DesktopApp() {
     ]);
     if (results.some((r) => r.status === "rejected")) {
       setError(
-        "Místní relace byla ukončena. Uložené nebo serverové přihlášení se nepodařilo plně zrušit; zkontrolujte připojení a systémové úložiště.",
+        "The local session has ended. The saved or server session could not be fully revoked; check your connection and credential store.",
       );
     }
   }
@@ -88,10 +100,10 @@ export default function DesktopApp() {
     return (
       <App
         navigation={
-          <nav className="local-nav" aria-label="Online režim">
+          <nav className="local-nav" aria-label={t("Online mode")}>
             <button className="button" onClick={() => setLocal(false)}>
               <ArrowLeft size={16} />
-              {session ? "Zpět do týmového prostoru" : "Přihlásit se online"}
+              {session ? t("Back to team space") : t("Sign in online")}
             </button>
           </nav>
         }
@@ -101,7 +113,7 @@ export default function DesktopApp() {
     return (
       <Login
         restoring={restoring}
-        error={error}
+        error={t(error)}
         onSession={setSession}
         onLocal={() => setLocal(true)}
       />
@@ -114,11 +126,11 @@ export default function DesktopApp() {
         </button>
         <span className="signed-user">{session.user.display_name}</span>
         <button className="button" onClick={() => setLocal(true)}>
-          Lokální režim
+          {t("Local mode")}
         </button>
         <button
           className="icon-button"
-          aria-label="Odhlásit se"
+          aria-label={t("Sign out")}
           onClick={() => void logout()}
         >
           <LogOut size={18} />
@@ -126,7 +138,7 @@ export default function DesktopApp() {
       </header>
       {session.storageNotice && (
         <p className="form-error" role="status">
-          {session.storageNotice}
+          {t(session.storageNotice)}
         </p>
       )}
       {room ? (
@@ -158,6 +170,7 @@ function Login({
   onSession: (s: Session) => void;
   onLocal: () => void;
 }) {
+  useTranslation();
   const [register, setRegister] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -193,8 +206,9 @@ function Login({
           await credentials.save(token);
         } catch {
           await credentials.clear().catch(() => {});
-          storageNotice =
-            "Přihlášení se nepodařilo zapamatovat. Jste přihlášeni pro toto spuštění; po zavření aplikace se přihlaste znovu.";
+          storageNotice = t(
+            "Could not remember your session. You are signed in for this app session; sign in again after closing the app.",
+          );
         }
       } else if (isTauri()) await credentials.clear().catch(() => {});
       onSession({ token, user, storageNotice });
@@ -211,33 +225,34 @@ function Login({
         <span className="wordmark">
           DiGitA<span>05</span>
         </span>
-        <div className="eyebrow">VÁŠ TÝM. SPOLEČNÝ PROSTOR.</div>
+        <div className="eyebrow">{t("YOUR TEAM. A SHARED SPACE.")}</div>
         <h1>
-          Méně šumu.
+          {t("Less noise.")}
           <br />
-          Více spolupráce.
+          {t("More teamwork.")}
         </h1>
         <p>
-          Vstupte do místnosti. Mějte přehled o práci svého týmu, ještě než se
-          objeví na GitHubu.
+          {t(
+            "Join a room. See what your team is working on before it reaches GitHub.",
+          )}
         </p>
         <div className="login-grid" aria-hidden="true">
           <FolderGit2 size={64} strokeWidth={1} />
         </div>
       </section>
       <section className="login-panel">
-        <div className="eyebrow">VÍTEJTE V DIGITA</div>
-        <h2>{register ? "Vytvořit účet" : "Přihlásit se"}</h2>
+        <div className="eyebrow">{t("WELCOME TO DIGITA")}</div>
+        <h2>{register ? t("Create account") : t("Sign in")}</h2>
         {(error || initialError) && (
           <p className="form-error" role="alert">
-            {error || initialError}
+            {t(error || initialError)}
           </p>
         )}
-        {restoring && <p role="status">Obnovuji přihlášení…</p>}
+        {restoring && <p role="status">{t("Restoring your session…")}</p>}
         <form onSubmit={(e) => void submit(e)}>
           {register && (
             <label>
-              Jméno
+              {t("Display name")}
               <input
                 name="name"
                 autoComplete="nickname"
@@ -247,7 +262,7 @@ function Login({
             </label>
           )}
           <label>
-            E-mail
+            {t("Email")}
             <input
               name="email"
               type="email"
@@ -257,7 +272,7 @@ function Login({
             />
           </label>
           <label>
-            Heslo
+            {t("Password")}
             <input
               name="password"
               type="password"
@@ -267,7 +282,7 @@ function Login({
               required
             />
           </label>
-          {register && <p className="muted">Alespoň 12 znaků.</p>}
+          {register && <p className="muted">{t("At least 12 characters.")}</p>}
           {isTauri() && (
             <label className="check-label">
               <input
@@ -275,11 +290,15 @@ function Login({
                 checked={remember}
                 onChange={(e) => setRemember(e.target.checked)}
               />{" "}
-              Zapamatovat přihlášení v systémovém úložišti
+              {t("Remember sign-in in the system credential store")}
             </label>
           )}
           <button className="button primary" disabled={busy || restoring}>
-            {busy ? "Připojuji…" : register ? "Vytvořit účet" : "Přihlásit se"}
+            {busy
+              ? t("Connecting…")
+              : register
+                ? t("Create account")
+                : t("Sign in")}
             <ArrowUpRight size={16} />
           </button>
         </form>
@@ -291,12 +310,14 @@ function Login({
             setError("");
           }}
         >
-          {register ? "Už mám účet" : "Nemám účet — registrovat"}
+          {register
+            ? t("I already have an account")
+            : t("No account? Register")}
         </button>
         <div className="login-local">
-          <p>Chcete pracovat bez připojení?</p>
+          <p>{t("Want to work offline?")}</p>
           <button className="button" disabled={busy} onClick={onLocal}>
-            Lokální režim
+            {t("Local mode")}
           </button>
         </div>
       </section>
@@ -313,6 +334,7 @@ function Dashboard({
   onRoom: (r: Room) => void;
   onExpired: () => void;
 }) {
+  useTranslation();
   const [teams, setTeams] = useState<TeamView[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -405,21 +427,22 @@ function Dashboard({
     <main className="dashboard">
       <div className="dashboard-heading">
         <div>
-          <div className="eyebrow">VAŠE TÝMOVÉ PROSTORY</div>
-          <h1>Všechno má své místo.</h1>
+          <div className="eyebrow">{t("YOUR TEAM SPACES")}</div>
+          <h1>{t("Everything has its place.")}</h1>
           <p>
-            Vaše týmy, projekty a místnosti. Pokračujte tam, kde vzniká další
-            dobrý nápad.
+            {t(
+              "Your teams, projects, and rooms. Pick up where the next good idea begins.",
+            )}
           </p>
         </div>
         <button
           className="button"
-          aria-label="Obnovit místnosti"
+          aria-label={t("Refresh rooms")}
           disabled={loading || busy}
           onClick={() => setRevision((n) => n + 1)}
         >
           <RefreshCw size={18} className={loading ? "spin" : undefined} />
-          {loading ? "Obnovuji…" : "Obnovit místnosti"}
+          {loading ? t("Refreshing…") : t("Refresh rooms")}
         </button>
       </div>
       <div className="dashboard-actions">
@@ -429,44 +452,44 @@ function Dashboard({
           onClick={() => setAction(managers.length ? "room" : "team")}
         >
           <Plus size={16} />
-          Vytvořit místnost
+          {t("Create room")}
         </button>
         <button
           className="button"
           disabled={loading || busy}
           onClick={() => setAction("join")}
         >
-          Připojit se přes pozvánku
+          {t("Join with invitation")}
         </button>
         <button
           className="text-button"
           disabled={loading || busy}
           onClick={() => setAction("team")}
         >
-          Vytvořit tým
+          {t("Create team")}
         </button>
       </div>
       {error && (
         <p className="form-error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
       {action && (
         <section className="action-panel">
           <h2>
             {action === "team"
-              ? "Nový tým"
+              ? t("New team")
               : action === "room"
-                ? "Nová místnost"
-                : "Připojit se k týmu"}
+                ? t("New room")
+                : t("Join a team")}
           </h2>
           {action === "team" && !managers.length && (
-            <p>Nejprve vytvořte tým, do kterého bude místnost patřit.</p>
+            <p>{t("First create a team for this room.")}</p>
           )}
           <form onSubmit={(e) => void submit(e)}>
             {action === "room" && (
               <label>
-                Tým
+                {t("Team")}
                 <select name="team">
                   {managers.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -478,7 +501,7 @@ function Dashboard({
             )}
             {action === "join" ? (
               <label>
-                Kód pozvánky
+                {t("Invitation code")}
                 <input
                   name="code"
                   required
@@ -489,13 +512,13 @@ function Dashboard({
               </label>
             ) : (
               <label>
-                Název
+                {t("Name")}
                 <input name="name" required maxLength={80} />
               </label>
             )}
             <div className="dashboard-actions">
               <button className="button primary" disabled={busy}>
-                {action === "join" ? "Přijmout pozvánku" : "Vytvořit"}
+                {action === "join" ? t("Accept invitation") : t("Create")}
               </button>
               <button
                 type="button"
@@ -503,7 +526,7 @@ function Dashboard({
                 disabled={busy}
                 onClick={() => setAction(null)}
               >
-                Zrušit
+                {t("Cancel")}
               </button>
             </div>
           </form>
@@ -511,29 +534,31 @@ function Dashboard({
       )}
       {invitation && (
         <section className="action-panel">
-          <h2>Pozvánka je připravená</h2>
+          <h2>{t("Your invitation is ready")}</h2>
           <p>
-            Předejte tento jednorázový kód kolegovi. Platí do{" "}
-            {new Date(invitation.expires_at).toLocaleString("cs-CZ")}.
+            {t("Share this single-use code with a teammate. Expires")}{" "}
+            {new Date(invitation.expires_at).toLocaleString(dateLocale())}.
           </p>
           <input
-            aria-label="Vytvořený kód pozvánky"
+            aria-label={t("Created invitation code")}
             readOnly
             value={invitation.code}
             onFocus={(e) => e.target.select()}
           />
           <button className="text-button" onClick={() => setInvitation(null)}>
-            Zavřít pozvánku
+            {t("Close invitation")}
           </button>
         </section>
       )}
       {loading ? (
-        <p role="status">Načítám místnosti…</p>
+        <p role="status">{t("Loading rooms…")}</p>
       ) : !teams.length && !error ? (
         <section className="dashboard-empty">
           <Users size={40} strokeWidth={1} />
-          <h2>Váš první společný prostor.</h2>
-          <p>Vytvořte tým a místnost nebo přijměte pozvánku od kolegy.</p>
+          <h2>{t("Your first shared space.")}</h2>
+          <p>
+            {t("Create a team and room, or accept a teammate's invitation.")}
+          </p>
         </section>
       ) : (
         teams.map((team) => (
@@ -545,10 +570,10 @@ function Dashboard({
               </h2>
               <span className="eyebrow">
                 {team.role === "owner"
-                  ? "VLASTNÍK"
+                  ? t("OWNER")
                   : team.role === "admin"
-                    ? "SPRÁVCE"
-                    : "ČLEN"}
+                    ? t("ADMIN")
+                    : t("MEMBER")}
               </span>
               {team.role !== "member" && (
                 <button
@@ -556,7 +581,7 @@ function Dashboard({
                   disabled={busy}
                   onClick={() => void invite(team.id)}
                 >
-                  Pozvat člena
+                  {t("Invite member")}
                 </button>
               )}
             </div>
@@ -571,17 +596,17 @@ function Dashboard({
                     <FolderGit2 size={24} strokeWidth={1} />
                     <h3>{room.name}</h3>
                     <span>
-                      Vstoupit do místnosti <ArrowUpRight size={16} />
+                      {t("Enter room")} <ArrowUpRight size={16} />
                     </span>
                   </button>
                 ))}
               </div>
             ) : (
               <p className="muted">
-                Tým zatím nemá žádnou místnost.
+                {t("This team has no rooms yet.")}
                 {team.role === "member"
-                  ? " Požádejte správce o její vytvoření."
-                  : " Použijte Vytvořit místnost."}
+                  ? t(" Ask an admin to create one.")
+                  : t(" Use Create room.")}
               </p>
             )}
           </section>
@@ -592,18 +617,18 @@ function Dashboard({
 }
 
 const eventLabels: Record<string, string> = {
-  "ambient.started": "spustil/a společné prostředí",
-  "ambient.paused": "pozastavil/a společné prostředí",
-  "presence.joined": "vstoupil/a do místnosti",
-  "presence.left": "opustil/a místnost",
-  "git.connected": "zapnul/a sdílení Git stavu",
-  "git.disconnected": "ukončil/a sdílení Git stavu",
-  "git.working_tree_changed": "aktualizoval/a Git stav",
-  "git.branch_changed": "změnil/a větev",
-  "git.commit_created": "má jiný poslední commit",
-  "conflict.detected": "zaznamenal nový překryv sdílených změn",
+  "ambient.started": "started ambient playback",
+  "ambient.paused": "paused ambient playback",
+  "presence.joined": "joined the room",
+  "presence.left": "left the room",
+  "git.connected": "started sharing Git status",
+  "git.disconnected": "stopped sharing Git status",
+  "git.working_tree_changed": "updated Git status",
+  "git.branch_changed": "changed branches",
+  "git.commit_created": "has a different latest commit",
+  "conflict.detected": "detected a new overlap in shared changes",
   "conflict.resolved":
-    "přestal pozorovat některý překryv (změna stavu, sdílení nebo přítomnosti)",
+    "no longer sees an overlap (status, sharing, or presence changed)",
 };
 function RoomWorkspace({
   room,
@@ -614,6 +639,7 @@ function RoomWorkspace({
   session: Session;
   onBack: () => void;
 }) {
+  useTranslation();
   const [snapshot, setSnapshot] = useState<RepositorySnapshot | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [sharing, setSharing] = useState<Sharing>({
@@ -655,20 +681,21 @@ function RoomWorkspace({
     ),
   ];
   const statusLabel: Record<string, string> = {
-    connecting: "Připojuji…",
-    online: "Živě připojeno",
-    offline: "Spojení přerušeno — obnovuji…",
-    denied:
-      "Přístup vypršel nebo byl odebrán. Vraťte se na dashboard a přihlaste se znovu.",
-    replaced: "Místnost je otevřená v jiném okně.",
-    invalid: "Sdílený stav nebyl přijat. Vypněte sdílení a připojte se znovu.",
+    connecting: t("Connecting…"),
+    online: t("Connected live"),
+    offline: t("Connection lost — reconnecting…"),
+    denied: t(
+      "Access expired or was revoked. Return to the dashboard and sign in again.",
+    ),
+    replaced: t("This room is open in another window."),
+    invalid: t("Shared status was rejected. Turn off sharing and reconnect."),
   };
   return (
     <div className="room-workspace">
       <div className="room-heading">
         <button className="button" onClick={onBack}>
           <ArrowLeft size={16} />
-          Všechny místnosti
+          {t("All rooms")}
         </button>
         <h1>{room.name}</h1>
         <span role="status" className="connection">
@@ -676,16 +703,17 @@ function RoomWorkspace({
         </span>
         {["offline", "replaced", "invalid"].includes(live.status) && (
           <button className="text-button" onClick={live.reconnect}>
-            Připojit znovu
+            {t("Reconnect")}
           </button>
         )}
       </div>
       <section className="privacy-controls">
         <div>
-          <h2>Sdílení v této místnosti</h2>
+          <h2>{t("Sharing in this room")}</h2>
           <p>
-            Připojte lokální kopii společného projektu. Kód ani obsah změn se
-            neodesílají.
+            {t(
+              "Connect your local copy of the shared project. Code and diffs are never sent.",
+            )}
           </p>
         </div>
         <label className="check-label">
@@ -695,14 +723,14 @@ function RoomWorkspace({
             disabled={!snapshot}
             onChange={(e) => setEnabled(e.target.checked)}
           />{" "}
-          Toto je repozitář této místnosti — sdílet Git stav
+          {t("This repository belongs to this room — share Git status")}
         </label>
         <div className="privacy-options">
           {(
             [
-              ["branch", "Název větve"],
-              ["files", "Názvy souborů"],
-              ["commit_message", "Zpráva commitu"],
+              ["branch", t("Branch name")],
+              ["files", t("File names")],
+              ["commit_message", t("Commit message")],
             ] as const
           ).map(([key, label]) => (
             <label key={key} className="check-label">
@@ -719,12 +747,16 @@ function RoomWorkspace({
         </div>
         <p className="muted">
           {enabled
-            ? "Sdílíte počet změn a hash commitu; další údaje podle voleb výše."
-            : "Sdílení Git stavu je vypnuté. Ostatní vidí pouze vaši přítomnost."}
+            ? t(
+                "Sharing the change count and commit hash, plus the fields selected above.",
+              )
+            : t(
+                "Git sharing is off. Others can only see your online presence.",
+              )}
         </p>
         {enabled && sharing.files && !presence?.sharing.files && (
           <p className="muted">
-            Seznam souborů je příliš velký. Sdílí se pouze jejich počet.
+            {t("The file list is too large. Only the count is shared.")}
           </p>
         )}
       </section>
@@ -737,9 +769,10 @@ function RoomWorkspace({
       <div className="room-columns">
         <section className="team-presence">
           <h2>
-            Lidé v místnosti <span className="count">{online.size}</span>
+            {t("People in this room")}{" "}
+            <span className="count">{online.size}</span>
           </h2>
-          {memberError && <p role="alert">{memberError}</p>}
+          {memberError && <p role="alert">{t(memberError)}</p>}
           {visibleMembers.map((member) => {
             const peer = online.get(member.user_id);
             const git = peer?.presence;
@@ -748,15 +781,15 @@ function RoomWorkspace({
                 <div className="member-title">
                   <strong>
                     {member.display_name}
-                    {member.user_id === session.user.id ? " (vy)" : ""}
+                    {member.user_id === session.user.id ? t(" (you)") : ""}
                   </strong>
-                  <span>{peer ? "Online" : "Mimo místnost"}</span>
+                  <span>{peer ? t("Online") : t("Outside the room")}</span>
                 </div>
                 {git ? (
                   <>
                     <p>
-                      {git.branch ?? "Větev je skrytá"} · {git.changed_count}{" "}
-                      změněných souborů
+                      {git.branch ?? t("Branch hidden")} · {git.changed_count}{" "}
+                      {t("changed files")}
                     </p>
                     {git.commit_hash && (
                       <p className="mono">
@@ -770,30 +803,32 @@ function RoomWorkspace({
                         ))}
                       </ul>
                     ) : (
-                      <p className="muted">Názvy souborů se nesdílejí.</p>
+                      <p className="muted">{t("File names are not shared.")}</p>
                     )}
                   </>
                 ) : (
-                  <p className="muted">{peer ? "Git stav se nesdílí." : ""}</p>
+                  <p className="muted">
+                    {peer ? t("Git status is not shared.") : ""}
+                  </p>
                 )}
               </article>
             );
           })}
         </section>
         <section className="room-timeline">
-          <h2>Aktivita</h2>
+          <h2>{t("Activity")}</h2>
           <p className="muted">
-            Posledních 100 událostí aktuální relace místnosti.
+            {t("The last 100 events in the current room session.")}
           </p>
           <ol>
             {[...(live.state?.events ?? [])].reverse().map((event) => (
               <li key={event.id}>
                 <time>
-                  {new Date(event.created_at).toLocaleTimeString("cs-CZ")}
+                  {new Date(event.created_at).toLocaleTimeString(dateLocale())}
                 </time>
                 <span>
                   <strong>{event.display_name}</strong>{" "}
-                  {eventLabels[event.type] ?? "aktualizoval/a stav"}
+                  {t(eventLabels[event.type] ?? "updated their status")}
                 </span>
               </li>
             ))}

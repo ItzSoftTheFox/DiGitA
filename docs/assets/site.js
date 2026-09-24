@@ -1,18 +1,18 @@
 const previews = {
   workspace: {
     src: './images/workspace.png',
-    alt: 'DiGitA: přehled větve, změněných souborů a posledního commitu v lokálním repozitáři.',
-    caption: 'Váš repozitář. Vše podstatné na jednom místě.',
+    alt: 'DiGitA: branch, changed files, and the latest commit in a local repository.',
+    caption: 'Your repository. Everything that matters in one place.',
   },
   dashboard: {
     src: './images/dashboard.png',
-    alt: 'DiGitA: přehled týmů, místností a pozvánek do společného prostoru.',
-    caption: 'Váš tým má své místo. Připojte se a začněte společně.',
+    alt: 'DiGitA: teams, rooms, and invitations to a shared space.',
+    caption: 'A place for your team. Join in and start together.',
   },
   'conflict-radar': {
     src: './images/conflict-radar.png',
-    alt: 'DiGitA Conflict Radar: upozornění na soubory upravované více členy místnosti.',
-    caption: 'Společný soubor? Dozvíte se o něm včas.',
+    alt: 'DiGitA Conflict Radar: warnings about files changed by multiple room members.',
+    caption: 'Working on the same file? Find out early.',
   },
 };
 const image = document.querySelector('#preview-image');
