@@ -5,7 +5,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   isTauri: mocks.desktop,
   invoke: mocks.invoke,
 }));
-import { API_URL, credentials } from "./api";
+import { API_URL, api, credentials } from "./api";
 const stored = new Map<string, string>();
 
 beforeEach(() => {
@@ -67,4 +67,111 @@ it("disables restoration of an older credential when saving a new session fails"
   mocks.invoke.mockClear();
   expect(await credentials.read()).toBeNull();
   expect(mocks.invoke).not.toHaveBeenCalled();
+});
+
+// Exercise the actual HTTP boundary: only allowlisted public messages reach the UI.
+describe("request failures", () => {
+  it.each([
+    [401, "/auth/login", "Incorrect email or password."],
+    [401, "/teams", "Your session has expired. Sign in again."],
+    [403, "/auth/register", "Registration is currently closed."],
+    [
+      403,
+      "/teams",
+      "You do not have permission for this action. Ask a team owner or admin.",
+    ],
+    [
+      404,
+      "/invitations/accept",
+      "This invitation is invalid, expired, or already used. Ask for a new code.",
+    ],
+    [
+      409,
+      "/teams",
+      "This action conflicts with the current state. Refresh and check before trying again.",
+    ],
+    [422, "/auth/login", "Check the entered details."],
+    [
+      503,
+      "/teams",
+      "The server is temporarily unavailable. Try again shortly.",
+    ],
+  ])("sanitizes status %s on %s", async (status, path, message) => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ detail: "private password /server/path" }),
+            { status },
+          ),
+        ),
+    );
+    await expect(api(path)).rejects.toMatchObject({ status, message });
+  });
+
+  it("preserves a known quota reason and provides a bounded Retry-After", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: "You have reached the limit for owned teams.",
+          }),
+          { status: 409 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response("{}", { status: 429, headers: { "Retry-After": "2" } }),
+      )
+      .mockResolvedValueOnce(
+        new Response("{}", {
+          status: 429,
+          headers: { "Retry-After": "999999" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    await expect(api("/teams")).rejects.toMatchObject({
+      message: "You have reached the limit for owned teams.",
+    });
+    await expect(api("/teams")).rejects.toMatchObject({ retryAfter: 2 });
+    await expect(api("/teams")).rejects.toMatchObject({ retryAfter: 600 });
+  });
+
+  it("never automatically replays a write whose outcome is unknown", async () => {
+    const fetch = vi
+      .fn()
+      .mockRejectedValue(new TypeError("private transport details"));
+    vi.stubGlobal("fetch", fetch);
+    await expect(
+      api("/teams", "secret-token", "POST", { name: "Private" }),
+    ).rejects.toMatchObject({
+      status: 0,
+      outcomeUnknown: true,
+      message: "Cannot reach the server. Check your connection and try again.",
+    });
+    expect(fetch).toHaveBeenCalledOnce();
+    fetch.mockResolvedValue(
+      new Response("<html>private proxy error</html>", { status: 502 }),
+    );
+    await expect(
+      api("/teams", "secret-token", "POST", {}),
+    ).rejects.toMatchObject({ outcomeUnknown: true });
+    fetch.mockResolvedValue(new Response("not json", { status: 200 }));
+    await expect(
+      api("/teams", "secret-token", "POST", {}),
+    ).rejects.toMatchObject({ outcomeUnknown: true });
+  });
+
+  it("does not send offline requests or mark their outcome unknown", async () => {
+    vi.stubGlobal("navigator", { onLine: false });
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    await expect(api("/teams", "token", "POST", {})).rejects.toMatchObject({
+      outcomeUnknown: false,
+      message: "You are offline. Reconnect and try again.",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

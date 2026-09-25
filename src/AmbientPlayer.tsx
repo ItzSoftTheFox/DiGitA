@@ -1,3 +1,4 @@
+import { SettingsContent } from "./LanguageSettings";
 import { t, useTranslation } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { Headphones, Pause, Play, Volume2 } from "lucide-react";
@@ -145,17 +146,24 @@ export function AmbientPlayer({
         >
           {listening ? t("Stop listening") : t("Start listening")}
         </button>
-        <label className="ambient-volume">
-          <Volume2 size={16} /> {t("My volume")}
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
-          />
-          <span>{volume} %</span>
-        </label>
+        <SettingsContent section="audio">
+          <label className="ambient-volume">
+            <Volume2 size={16} /> {t("My volume")}
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={volume}
+              onChange={(event) => setVolume(Number(event.target.value))}
+            />
+            <span>{volume} %</span>
+          </label>
+          <p>
+            {t(
+              "Volume changes apply immediately. Listening stays under your control in the room.",
+            )}
+          </p>
+        </SettingsContent>
         <span className="mono" aria-label={t("Track position")}>
           {state
             ? `0:${Math.floor(position).toString().padStart(2, "0")} / 0:30`

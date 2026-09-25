@@ -176,7 +176,9 @@ export function useRoom(
               ? "replaced"
               : event.code === 1008
                 ? "invalid"
-                : "denied",
+                : event.code === 4401
+                  ? "expired"
+                  : "denied",
           );
           return;
         }

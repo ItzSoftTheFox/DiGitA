@@ -45,6 +45,7 @@ test("two accounts create a room, share private-by-default Git presence and reco
   // Only the native filesystem boundary is mocked. HTTP and WebSocket traffic is real.
   for (const page of [owner, member])
     await page.addInitScript(() => {
+      localStorage.setItem("digita.intro.seen", "yes");
       const native = window as unknown as {
         isTauri: boolean;
         gitSnapshot: unknown;
@@ -104,12 +105,11 @@ test("two accounts create a room, share private-by-default Git presence and reco
       owner.getByRole("button", { name: /Shared project/ }),
     ).toBeVisible();
     await owner.screenshot({ path: "artifacts/dashboard.png", fullPage: true });
-    await owner
-      .locator(".dashboard")
-      .screenshot({
-        path: "artifacts/readme-dashboard.png",
-        style: ".language-settings-button { visibility: hidden; }",
-      });
+    await owner.locator(".dashboard").screenshot({
+      path: "artifacts/readme-dashboard.png",
+      style: ".language-settings-button { visibility: hidden; }",
+    });
+    await owner.getByRole("button", { name: "Team menu" }).click();
     await owner.getByRole("button", { name: "Invite member" }).click();
     const code = await owner.getByLabel("Created invitation code").inputValue();
     await register(member, "Petr", `petr-${suffix}@example.com`);
@@ -137,6 +137,13 @@ test("two accounts create a room, share private-by-default Git presence and reco
     await expect(
       member.getByRole("heading", { name: "Everything has its place." }),
     ).toBeVisible();
+    await member.getByRole("button", { name: "Team menu" }).click();
+    await expect(
+      member.getByRole("region", { name: "Team administration" }),
+    ).toContainText("Ask an owner or admin");
+    await expect(
+      member.getByRole("button", { name: "Invite member" }),
+    ).toHaveCount(0);
     await owner.getByRole("button", { name: /Shared project/ }).click();
     await member.getByRole("button", { name: /Shared project/ }).click();
     await expect(owner.getByRole("status")).toHaveText("Connected live");
@@ -169,7 +176,18 @@ test("two accounts create a room, share private-by-default Git presence and reco
         return Math.min(difference, 30 - difference);
       })
       .toBeLessThan(0.8);
+    await member.getByRole("button", { name: "Settings", exact: true }).click();
+    await member
+      .getByRole("button", { name: "Audio and notifications", exact: true })
+      .click();
     await member.getByRole("slider", { name: /My volume/ }).fill("60");
+    await member
+      .getByRole("button", { name: "Enable system notifications" })
+      .click();
+    await expect(member.getByRole("dialog").getByRole("alert")).toContainText(
+      "System notifications are not allowed.",
+    );
+    await member.getByRole("button", { name: "Close settings" }).click();
     expect(await ownerAudio.evaluate((el: HTMLAudioElement) => el.volume)).toBe(
       0.25,
     );
@@ -195,7 +213,10 @@ test("two accounts create a room, share private-by-default Git presence and reco
       .getByRole("button", { name: "Connect repository", exact: true })
       .click();
     await expect(
-      owner.getByText("Private local folder", { exact: true }).last(),
+      owner
+        .locator(".embedded-workspace")
+        .getByText("Private local folder", { exact: true })
+        .last(),
     ).toBeVisible();
     await expect(anna).toContainText("Git status is not shared.");
     await owner
@@ -204,8 +225,14 @@ test("two accounts create a room, share private-by-default Git presence and reco
     await expect(anna).toContainText("1 changed files");
     await expect(anna).not.toContainText("feature/team");
     await expect(anna).not.toContainText("src/team.ts");
+    await owner.getByRole("button", { name: "Settings", exact: true }).click();
+    await owner.getByRole("button", { name: "Privacy", exact: true }).click();
     await owner.getByLabel("File names", { exact: true }).check();
+    await owner.getByRole("button", { name: "Close settings" }).click();
+    await owner.getByRole("button", { name: "Settings", exact: true }).click();
+    await owner.getByRole("button", { name: "Privacy", exact: true }).click();
     await owner.getByLabel("Branch name", { exact: true }).check();
+    await owner.getByRole("button", { name: "Close settings" }).click();
     await expect(anna).toContainText("src/team.ts");
     await expect(anna).toContainText("feature/team");
     await member
@@ -216,7 +243,10 @@ test("two accounts create a room, share private-by-default Git presence and reco
       .check();
     const radar = member.locator(".conflict-radar");
     await expect(radar.locator(".conflict-list li")).toHaveCount(0);
+    await member.getByRole("button", { name: "Settings", exact: true }).click();
+    await member.getByRole("button", { name: "Privacy", exact: true }).click();
     await member.getByLabel("File names", { exact: true }).check();
+    await member.getByRole("button", { name: "Close settings" }).click();
     await expect(radar.locator(".conflict-list li")).toHaveCount(1);
     await expect(radar).toContainText("src/team.ts");
     await expect(radar).toContainText("Anna");
@@ -225,7 +255,10 @@ test("two accounts create a room, share private-by-default Git presence and reco
     const connectionCount = connections;
     const frameCount = frames.length;
     await owner.getByRole("button", { name: "Settings", exact: true }).click();
-    await owner.getByLabel("Language", { exact: true }).selectOption("cs");
+    await owner.getByRole("button", { name: "Language", exact: true }).click();
+    await owner
+      .getByRole("combobox", { name: "Language", exact: true })
+      .selectOption("cs");
     await owner.getByRole("button", { name: "Zavřít nastavení" }).click();
     await expect(owner.getByRole("status")).toHaveText("Živě připojeno");
     await expect(
@@ -242,7 +275,10 @@ test("two accounts create a room, share private-by-default Git presence and reco
       false,
     );
     await owner.getByRole("button", { name: "Nastavení", exact: true }).click();
-    await owner.getByLabel("Jazyk", { exact: true }).selectOption("en");
+    await owner.getByRole("button", { name: "Jazyk", exact: true }).click();
+    await owner
+      .getByRole("combobox", { name: "Jazyk", exact: true })
+      .selectOption("en");
     await owner.getByRole("button", { name: "Close settings" }).click();
     await expect(owner.getByRole("status")).toHaveText("Connected live");
     expect(connections).toBe(connectionCount);
@@ -251,12 +287,10 @@ test("two accounts create a room, share private-by-default Git presence and reco
       path: "artifacts/readme-radar.png",
       style: ".language-settings-button { visibility: hidden; }",
     });
-    await member
-      .locator(".ambient-player")
-      .screenshot({
-        path: "artifacts/readme-ambient.png",
-        style: ".language-settings-button { visibility: hidden; }",
-      });
+    await member.locator(".ambient-player").screenshot({
+      path: "artifacts/readme-ambient.png",
+      style: ".language-settings-button { visibility: hidden; }",
+    });
     await member.screenshot({
       path: "artifacts/conflict-radar.png",
       fullPage: true,
@@ -329,12 +363,24 @@ test("two accounts create a room, share private-by-default Git presence and reco
       path: "artifacts/ambient-room.png",
       fullPage: true,
     });
+    await owner.getByRole("button", { name: "Settings", exact: true }).click();
+    await owner.getByRole("button", { name: "Privacy", exact: true }).click();
     await owner.getByLabel("File names", { exact: true }).uncheck();
+    await owner.getByRole("button", { name: "Close settings" }).click();
     await expect(anna).not.toContainText("src/next.ts");
     await expect(radar.locator(".conflict-list li")).toHaveCount(0);
     await expect(member.locator(".room-timeline")).not.toContainText(
       "src/next.ts",
     );
+    await owner.getByRole("button", { name: "Settings", exact: true }).click();
+    await owner.getByRole("button", { name: "About", exact: true }).click();
+    await expect(owner.getByRole("dialog")).toContainText("Git sharing is on.");
+    await owner
+      .getByRole("dialog")
+      .getByRole("button", { name: "Stop sharing", exact: true })
+      .click();
+    await expect(anna).toContainText("Git status is not shared.");
+    await owner.getByRole("button", { name: "Close settings" }).click();
     await owner.getByRole("button", { name: "Disconnect repository" }).click();
     await expect(anna).toContainText("Git status is not shared.");
     expect(frames.join("\n")).not.toContain("/workspace/private-repository");

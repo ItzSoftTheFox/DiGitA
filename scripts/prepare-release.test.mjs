@@ -43,3 +43,29 @@ test("rejects unsupported installer platforms", () => {
     releaseConfig("https://api.example.com", "0.1.0", "v0.1.0", "android"),
   );
 });
+
+test("default native build allows the same public pilot endpoints as development", async () => {
+  const { readFileSync } = await import("node:fs");
+  const config = JSON.parse(
+    readFileSync(
+      new URL("../src-tauri/tauri.conf.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const connectSources = (policy) =>
+    policy
+      .split(";")
+      .find((directive) => directive.trim().startsWith("connect-src "))
+      .trim()
+      .split(/\s+/)
+      .slice(1);
+  const production = connectSources(config.app.security.csp);
+  const development = connectSources(config.app.security.devCsp);
+  for (const origin of development.filter((value) =>
+    /^(https|wss):/.test(value),
+  )) {
+    assert.ok(production.includes(origin), `Native build must allow ${origin}`);
+  }
+  assert.ok(!production.includes("*"));
+  assert.ok(!production.includes("https:"));
+});

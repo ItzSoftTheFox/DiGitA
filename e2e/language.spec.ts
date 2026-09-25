@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("digita.intro.seen", "yes"),
+  );
+});
+
 test.use({ locale: "cs-CZ" });
 
 test("English defaults, language persistence, and switching without losing drafts or local work", async ({
@@ -13,7 +19,10 @@ test("English defaults, language persistence, and switching without losing draft
   await page
     .getByRole("dialog")
     .screenshot({ path: "artifacts/settings-english.png" });
-  await page.getByLabel("Language", { exact: true }).selectOption("cs");
+  await page.getByRole("button", { name: "Language", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Language", exact: true })
+    .selectOption("cs");
   await expect(page.locator("html")).toHaveAttribute("lang", "cs");
   await page.keyboard.press("Escape");
   await expect(
@@ -28,7 +37,11 @@ test("English defaults, language persistence, and switching without losing draft
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "cs");
   await page.getByRole("button", { name: "Nastavení", exact: true }).click();
-  await page.getByLabel("Jazyk", { exact: true }).selectOption("en");
+  await page.getByRole("button", { name: "Jazyk", exact: true }).click();
+  await page.getByRole("button", { name: "Jazyk", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Jazyk", exact: true })
+    .selectOption("en");
   await page.getByRole("button", { name: "Close settings" }).click();
   await page.getByRole("button", { name: "Local mode" }).click();
   await page.getByRole("button", { name: "View demo" }).click();
@@ -36,7 +49,10 @@ test("English defaults, language persistence, and switching without losing draft
     .getByRole("textbox", { name: "Search files" })
     .fill("Workspace.tsx");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByLabel("Language", { exact: true }).selectOption("cs");
+  await page.getByRole("button", { name: "Language", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Language", exact: true })
+    .selectOption("cs");
   await page.getByRole("button", { name: "Zavřít nastavení" }).click();
   await expect(
     page.getByRole("textbox", { name: "Hledat soubor" }),
@@ -60,7 +76,10 @@ test("a blocked language store shows a useful warning without blocking the switc
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByLabel("Language", { exact: true }).selectOption("cs");
+  await page.getByRole("button", { name: "Language", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Language", exact: true })
+    .selectOption("cs");
   await expect(page.getByRole("alert")).toContainText(
     "Jazyk se nepodařilo uložit",
   );

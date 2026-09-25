@@ -199,7 +199,16 @@ member selects their own working copy and confirms it belongs to the room before
 enabling sharing. A room represents one logical project; remote URLs are not
 automatically matched. Change the sharing checkboxes to permit individual fields.
 
-For offline use, choose **Local mode** on the login screen.
+For offline use, choose **Local mode** on the login screen, including while a
+server request is pending. First launch shows a short skippable introduction;
+reopen it under **Settings → About → Quick start**.
+
+Requests show a slow-server hint after eight seconds. Rate-limit responses show
+a countdown. Expired sessions return to sign-in; failed saved-session restoration
+can be retried. Errors do not display arbitrary backend or credential-store details.
+If a creation request loses its response, refresh the rooms and check the result
+before explicitly allowing a new request. Requests are not automatically replayed;
+a lost invitation code cannot be recovered and another invitation consumes quota.
 Use **Sign in online** in the workspace header to return to login, or
 **Back to team space** if you are already signed in. On the dashboard,
 **Refresh rooms** reloads your teams, rooms, and permissions.
@@ -227,7 +236,7 @@ Stop the standalone preview server before running `npm run tauri dev`; both use 
 Each live room includes **Shared ambience** with a bundled 30-second soft-noise
 loop. Any current room member can use **Play for everyone** or
 **Pause for everyone**. Playback starts paused, and each person must separately
-choose **Start listening** to hear it. **My volume** changes only that
+choose **Start listening** to hear it. **Settings → Audio and notifications → My volume** changes only that
 client's volume (initially 25%). Listening and volume reset when leaving the room.
 
 The server sends playback metadata, never audio streams. The WAV is included in
@@ -256,7 +265,7 @@ still require this manual check; automated playback checks use Chromium.
 ### Conflict Radar
 
 Open the same room using two different accounts and connect each account's local
-working copy. Enable Git sharing and **File names** on both clients. Change the
+working copy. Enable Git sharing in the room and **Settings → Privacy → File names** on both clients. Change the
 same relative path in both working copies: the radar lists the path and members
 after the next Git refresh. No commit or push is required. Remove one change or
 disable file sharing: the warning disappears. Leaving, revocation, and network
@@ -274,7 +283,7 @@ and `conflict.resolved` events contain no paths or participant lists. Each event
 type is batched and limited to once per 30 seconds per room; the live warning list
 always updates immediately, even when a timeline event is suppressed.
 
-**Enable system notifications** enables native notifications for the current room
+**Settings → Audio and notifications → Enable system notifications** enables native notifications for the current room
 visit after an OS permission check. Notifications concern only the current user's
 new overlaps, contain no file/member/project names, wait 1.5 seconds to group bursts,
 and occur at most once per 30 seconds. Resolved or withdrawn warnings cancel pending
@@ -483,7 +492,7 @@ commit hash, and only the optional metadata permitted by the user. It never send
 source code, diffs, absolute local paths, or commit authors. Hidden fields are also
 removed on the server. The timeline contains generic event descriptions, without
 file names, branch names, or commit messages. Session tokens are kept in memory
-or the OS credential store; web storage contains a remember-login flag and the language preference, never tokens.
+or the OS credential store; web storage contains a remember-login flag, the language preference, and an intro-dismissal flag, never tokens.
 
 Team role changes, member removal/leaving, and invitation revocation are
 currently API operations; desktop administration controls are not implemented.
@@ -532,6 +541,22 @@ See [build, installation, and distribution](docs/arch-linux.md).
 A separate HTML + Tailwind website includes app previews, FAQ, and the Arch pilot
 download. Sources live in `website/`; built output lives in `docs/`.
 See [local preview, editing, and GitHub Pages setup](website/README.md).
+
+### Settings and navigation
+
+The sidebar Settings button is available from sign-in, the dashboard, local work,
+and rooms. Settings has Account and profile, Projects, Privacy, Audio and
+notifications, Language, and About sections. Close it or press Escape to return
+without losing room connection, repository filters, sharing consent, or listening.
+Sharing status and Stop sharing remain visible throughout Settings and in the room.
+Language changes apply immediately and report storage failures; other preferences
+remain session-only. Profile editing and remembered projects are future work.
+
+Use a team's **Team menu** for administration. Owners/admins can create invitations;
+members see guidance to contact an admin. Creation drafts survive Settings and
+failed requests; switching/cancelling filled forms or leaving for local mode asks
+before discarding. See the [phase 3 design](docs/design-0.2.0-phase-3.md) and
+[validation](docs/validation-0.2.0-phase-3.md).
 
 ### Language policy
 

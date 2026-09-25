@@ -15,9 +15,22 @@ import {
   Plus,
   RefreshCw,
   Users,
+  X,
 } from "lucide-react";
 import App from "./App";
-import { LanguageSettings } from "./LanguageSettings";
+import { QuickStart, needsIntroduction } from "./QuickStart";
+import { NetworkNotice, RequestProgress, RetryDelay } from "./RequestFeedback";
+import {
+  errorMessage,
+  useRetryDelay,
+  useSlowRequest,
+  slowRequestMessage,
+} from "./requestFeedback";
+import {
+  LanguageSettings,
+  SettingsButton,
+  SettingsContent,
+} from "./LanguageSettings";
 import { AmbientPlayer } from "./AmbientPlayer";
 import { ConflictRadar } from "./ConflictRadar";
 import {
@@ -35,15 +48,16 @@ import "./collaboration.css";
 
 type Session = { token: string; user: User; storageNotice?: string };
 type TeamView = Team & { rooms: Room[]; role: Member["role"] };
-const message = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+const message = errorMessage;
 
 export default function DesktopApp() {
+  const [intro, setIntro] = useState(needsIntroduction);
   return (
-    <>
+    <LanguageSettings onShowGuide={() => setIntro(true)}>
+      <NetworkNotice />
       <DesktopContent />
-      <LanguageSettings />
-    </>
+      <QuickStart open={intro} onClose={() => setIntro(false)} />
+    </LanguageSettings>
   );
 }
 
@@ -51,13 +65,30 @@ function DesktopContent() {
   useTranslation();
   const [session, setSession] = useState<Session | null>(null);
   const [restoring, setRestoring] = useState(true);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
+  const [uncertain, setUncertain] = useState(false);
+  const [mutating, setMutating] = useState(false);
+  const mutationLock = useRef(false);
+  const canNavigate = useRef(() => true);
+  const [dashboardRevision, setDashboardRevision] = useState(0);
   const [local, setLocal] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     let active = true;
-    void credentials
-      .read()
+    setRestoring(true);
+    setError("");
+    void Promise.resolve()
+      .then(async () => {
+        try {
+          return await credentials.read();
+        } catch {
+          throw new ApiError(
+            0,
+            "Could not read saved sign-in. Unlock your system credential store and retry, or sign in without remembering this session.",
+          );
+        }
+      })
       .then(async (token) => {
         if (!token) return;
         try {
@@ -65,7 +96,7 @@ function DesktopContent() {
           if (active) setSession({ token, user });
         } catch (cause) {
           if (cause instanceof ApiError && cause.status === 401)
-            await credentials.clear();
+            await credentials.clear().catch(() => {});
           throw cause;
         }
       })
@@ -78,11 +109,20 @@ function DesktopContent() {
     return () => {
       active = false;
     };
+  }, [restoreAttempt]);
+  const expireSession = useCallback(() => {
+    setRoom(null);
+    setSession(null);
+    setUncertain(false);
+    setError("Your session has expired. Sign in again.");
+    void credentials.clear().catch(() => {});
   }, []);
   async function logout() {
+    if (!canNavigate.current()) return;
     const previous = session;
     setRoom(null);
     setSession(null);
+    setUncertain(false);
     setError("");
     const results = await Promise.allSettled([
       credentials.clear(),
@@ -96,65 +136,115 @@ function DesktopContent() {
       );
     }
   }
+  const account = (
+    <SettingsContent section="account">
+      {session ? (
+        <article className="profile-preview">
+          <span className="profile-avatar" aria-hidden="true">
+            {session.user.display_name.slice(0, 2).toUpperCase()}
+          </span>
+          <h3>{session.user.display_name}</h3>
+          <p>{session.user.email}</p>
+          <p>{t("Your email is private. Teammates see your display name.")}</p>
+        </article>
+      ) : null}
+    </SettingsContent>
+  );
   if (local)
     return (
       <App
         navigation={
-          <nav className="local-nav" aria-label={t("Online mode")}>
-            <button className="button" onClick={() => setLocal(false)}>
-              <ArrowLeft size={16} />
-              {session ? t("Back to team space") : t("Sign in online")}
-            </button>
-          </nav>
+          <>
+            {" "}
+            {account}
+            <nav className="local-nav" aria-label={t("Online mode")}>
+              <button className="button" onClick={() => setLocal(false)}>
+                <ArrowLeft size={16} />
+                {session ? t("Back to team space") : t("Sign in online")}
+              </button>
+            </nav>
+          </>
         }
       />
     );
   if (!session)
     return (
-      <Login
-        restoring={restoring}
-        error={t(error)}
-        onSession={setSession}
-        onLocal={() => setLocal(true)}
-      />
+      <div className="desktop-with-menu">
+        <nav className="desktop-menu" aria-label={t("Application menu")}>
+          <SettingsButton />
+        </nav>
+        <Login
+          restoring={restoring}
+          error={t(error)}
+          onDismissError={() => setError("")}
+          onRestore={() => setRestoreAttempt((n) => n + 1)}
+          onSession={(value) => {
+            setUncertain(false);
+            setError("");
+            setSession(value);
+          }}
+          onLocal={() => setLocal(true)}
+        />
+      </div>
     );
   return (
-    <div className="collaboration-shell">
-      <header className="collab-topbar">
-        <button className="wordmark" onClick={() => setRoom(null)}>
-          DiGitA<span>05</span>
-        </button>
-        <span className="signed-user">{session.user.display_name}</span>
-        <button className="button" onClick={() => setLocal(true)}>
-          {t("Local mode")}
-        </button>
-        <button
-          className="icon-button"
-          aria-label={t("Sign out")}
-          onClick={() => void logout()}
-        >
-          <LogOut size={18} />
-        </button>
-      </header>
-      {session.storageNotice && (
-        <p className="form-error" role="status">
-          {t(session.storageNotice)}
-        </p>
-      )}
-      {room ? (
-        <RoomWorkspace
-          key={room.id}
-          room={room}
-          session={session}
-          onBack={() => setRoom(null)}
-        />
-      ) : (
-        <Dashboard
-          session={session}
-          onRoom={setRoom}
-          onExpired={() => void logout()}
-        />
-      )}
+    <div className="desktop-with-menu">
+      <nav className="desktop-menu" aria-label={t("Application menu")}>
+        <SettingsButton />
+      </nav>
+      {account}
+      <div className="collaboration-shell">
+        <header className="collab-topbar">
+          <button className="wordmark" onClick={() => setRoom(null)}>
+            DiGitA<span>05</span>
+          </button>
+          <span className="signed-user">{session.user.display_name}</span>
+          <button
+            className="button"
+            onClick={() => {
+              if (canNavigate.current()) setLocal(true);
+            }}
+          >
+            {t("Local mode")}
+          </button>
+          <button
+            className="icon-button"
+            aria-label={t("Sign out")}
+            onClick={() => void logout()}
+          >
+            <LogOut size={18} />
+          </button>
+        </header>
+        {session.storageNotice && (
+          <p className="form-error" role="status">
+            {t(session.storageNotice)}
+          </p>
+        )}
+        {room ? (
+          <RoomWorkspace
+            key={room.id}
+            room={room}
+            session={session}
+            onBack={() => setRoom(null)}
+            onExpired={expireSession}
+          />
+        ) : (
+          <Dashboard
+            canNavigate={canNavigate}
+            session={session}
+            onRoom={setRoom}
+            onExpired={expireSession}
+            revision={dashboardRevision}
+            onRefresh={() => setDashboardRevision((n) => n + 1)}
+            busy={mutating}
+            setBusy={setMutating}
+            submitting={mutationLock}
+            uncertain={uncertain}
+            onUncertain={() => setUncertain(true)}
+            onAcknowledge={() => setUncertain(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -164,25 +254,46 @@ function Login({
   error: initialError,
   onSession,
   onLocal,
+  onRestore,
+  onDismissError,
 }: {
   restoring: boolean;
   error: string;
   onSession: (s: Session) => void;
   onLocal: () => void;
+  onRestore: () => void;
+  onDismissError: () => void;
 }) {
   useTranslation();
   const [register, setRegister] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const submitting = useRef(false);
+  const [failure, setFailure] = useState<unknown>(null);
+  const cooldown = useRetryDelay(failure);
   const [remember, setRemember] = useState(false);
+  const dismissError = useRef(() => {});
+  dismissError.current = () => {
+    setError("");
+    onDismissError();
+  };
+  useEffect(() => {
+    if (!error && !initialError) return;
+    const timer = setTimeout(() => dismissError.current(), 5000);
+    return () => clearTimeout(timer);
+  }, [error, initialError]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting.current || restoring || cooldown > 0) return;
+    submitting.current = true;
     setBusy(true);
     setError("");
+    onDismissError();
     const data = new FormData(event.currentTarget);
     const email = String(data.get("email"));
     const password = String(data.get("password"));
     let token: string | undefined;
+    let creatingAccount = register;
     try {
       if (register) {
         await api("/auth/register", undefined, "POST", {
@@ -190,6 +301,7 @@ function Login({
           password,
           display_name: String(data.get("name")),
         });
+        creatingAccount = false;
         setRegister(false);
       }
       const result = await api<{ access_token: string }>(
@@ -214,8 +326,19 @@ function Login({
       onSession({ token, user, storageNotice });
     } catch (cause) {
       if (token) void api("/auth/logout", token, "POST").catch(() => {});
-      setError(message(cause));
+      setFailure(cause);
+      if (
+        creatingAccount &&
+        cause instanceof ApiError &&
+        cause.outcomeUnknown
+      ) {
+        setRegister(false);
+        setError(
+          "Could not confirm registration. Check your connection and try signing in before registering again.",
+        );
+      } else setError(message(cause));
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -244,63 +367,91 @@ function Login({
         <div className="eyebrow">{t("WELCOME TO DIGITA")}</div>
         <h2>{register ? t("Create account") : t("Sign in")}</h2>
         {(error || initialError) && (
-          <p className="form-error" role="alert">
-            {t(error || initialError)}
-          </p>
+          <div role="alert">
+            <button
+              type="button"
+              className="form-error dismissible-error"
+              title={t("Dismiss error")}
+              onClick={() => dismissError.current()}
+            >
+              {t(error || initialError)}
+              <X size={14} aria-hidden="true" />
+            </button>
+          </div>
         )}
-        {restoring && <p role="status">{t("Restoring your session…")}</p>}
+        <RequestProgress
+          pending={restoring || busy}
+          label={restoring ? "Restoring your session…" : "Connecting…"}
+        />
+        <RetryDelay seconds={cooldown} />
+        {initialError && (
+          <button
+            className="text-button"
+            disabled={restoring || busy || cooldown > 0}
+            onClick={onRestore}
+          >
+            {t("Retry saved sign-in")}
+          </button>
+        )}
         <form onSubmit={(e) => void submit(e)}>
-          {register && (
+          <fieldset className="request-fields" disabled={busy}>
+            {register && (
+              <label>
+                {t("Display name")}
+                <input
+                  name="name"
+                  autoComplete="nickname"
+                  required
+                  maxLength={80}
+                />
+              </label>
+            )}
             <label>
-              {t("Display name")}
+              {t("Email")}
               <input
-                name="name"
-                autoComplete="nickname"
+                name="email"
+                type="email"
+                autoComplete="username"
                 required
-                maxLength={80}
+                maxLength={254}
               />
             </label>
-          )}
-          <label>
-            {t("Email")}
-            <input
-              name="email"
-              type="email"
-              autoComplete="username"
-              required
-              maxLength={254}
-            />
-          </label>
-          <label>
-            {t("Password")}
-            <input
-              name="password"
-              type="password"
-              autoComplete={register ? "new-password" : "current-password"}
-              minLength={12}
-              maxLength={128}
-              required
-            />
-          </label>
-          {register && <p className="muted">{t("At least 12 characters.")}</p>}
-          {isTauri() && (
-            <label className="check-label">
+            <label>
+              {t("Password")}
               <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-              />{" "}
-              {t("Remember sign-in in the system credential store")}
+                name="password"
+                type="password"
+                autoComplete={register ? "new-password" : "current-password"}
+                minLength={12}
+                maxLength={128}
+                required
+              />
             </label>
-          )}
-          <button className="button primary" disabled={busy || restoring}>
-            {busy
-              ? t("Connecting…")
-              : register
-                ? t("Create account")
-                : t("Sign in")}
-            <ArrowUpRight size={16} />
-          </button>
+            {register && (
+              <p className="muted">{t("At least 12 characters.")}</p>
+            )}
+            {isTauri() && (
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />{" "}
+                {t("Remember sign-in in the system credential store")}
+              </label>
+            )}
+            <button
+              className="button primary"
+              disabled={busy || restoring || cooldown > 0}
+            >
+              {busy
+                ? t("Connecting…")
+                : register
+                  ? t("Create account")
+                  : t("Sign in")}
+              <ArrowUpRight size={16} />
+            </button>
+          </fieldset>
         </form>
         <button
           className="text-button"
@@ -316,7 +467,7 @@ function Login({
         </button>
         <div className="login-local">
           <p>{t("Want to work offline?")}</p>
-          <button className="button" disabled={busy} onClick={onLocal}>
+          <button className="button" onClick={onLocal}>
             {t("Local mode")}
           </button>
         </div>
@@ -326,21 +477,68 @@ function Login({
 }
 
 function Dashboard({
+  canNavigate,
   session,
+  revision,
+  onRefresh,
+  busy,
+  setBusy,
+  submitting,
   onRoom,
   onExpired,
+  uncertain,
+  onUncertain,
+  onAcknowledge,
 }: {
+  canNavigate: { current: () => boolean };
   session: Session;
+  revision: number;
+  onRefresh: () => void;
+  busy: boolean;
+  setBusy: (busy: boolean) => void;
+  submitting: { current: boolean };
   onRoom: (r: Room) => void;
   onExpired: () => void;
+  uncertain: boolean;
+  onUncertain: () => void;
+  onAcknowledge: () => void;
 }) {
   useTranslation();
+  const [failure, setFailure] = useState<unknown>(null);
+  const cooldown = useRetryDelay(failure);
+  const [checked, setChecked] = useState(false);
+  function failed(cause: unknown) {
+    setFailure(cause);
+    setError(message(cause));
+    if (cause instanceof ApiError && cause.status === 401) onExpired();
+    if (cause instanceof ApiError && cause.outcomeUnknown) {
+      setChecked(false);
+      onUncertain();
+    }
+  }
   const [teams, setTeams] = useState<TeamView[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [action, setAction] = useState<"team" | "room" | "join" | null>(null);
-  const [revision, setRevision] = useState(0);
+  const [adminTeam, setAdminTeam] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    canNavigate.current = () =>
+      !dirty || window.confirm(t("Discard the unsaved form?"));
+    const warn = (event: BeforeUnloadEvent) => {
+      if (dirty) event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => {
+      canNavigate.current = () => true;
+      window.removeEventListener("beforeunload", warn);
+    };
+  }, [dirty, canNavigate]);
+  function changeAction(next: typeof action) {
+    if (dirty && !window.confirm(t("Discard the unsaved form?"))) return;
+    setDirty(false);
+    setAction(next);
+  }
   const [invitation, setInvitation] = useState<{
     code: string;
     expires_at: string;
@@ -368,12 +566,16 @@ function Dashboard({
         ),
       )
       .then((list) => {
-        if (active) setTeams(list as TeamView[]);
+        if (active) {
+          setTeams(list as TeamView[]);
+          setChecked(true);
+        }
       })
       .catch((cause) => {
         if (active) {
-          setError(message(cause));
-          if (cause instanceof ApiError && cause.status === 401) onExpired();
+          setTeams([]);
+          setChecked(false);
+          failed(cause);
         }
       })
       .finally(() => {
@@ -385,6 +587,8 @@ function Dashboard({
   }, [session, revision]); // onExpired is intentionally not a reload trigger.
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting.current || loading || uncertain || cooldown > 0) return;
+    submitting.current = true;
     setBusy(true);
     setError("");
     const data = new FormData(event.currentTarget);
@@ -401,15 +605,19 @@ function Dashboard({
         await api("/invitations/accept", session.token, "POST", {
           code: String(data.get("code")).trim(),
         });
+      setDirty(false);
       setAction(null);
-      setRevision((n) => n + 1);
+      onRefresh();
     } catch (cause) {
-      setError(message(cause));
+      failed(cause);
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
   async function invite(teamId: string) {
+    if (submitting.current || loading || uncertain || cooldown > 0) return;
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
@@ -417,8 +625,9 @@ function Dashboard({
         await api(`/teams/${teamId}/invitations`, session.token, "POST"),
       );
     } catch (cause) {
-      setError(message(cause));
+      failed(cause);
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -438,8 +647,8 @@ function Dashboard({
         <button
           className="button"
           aria-label={t("Refresh rooms")}
-          disabled={loading || busy}
-          onClick={() => setRevision((n) => n + 1)}
+          disabled={loading || busy || cooldown > 0}
+          onClick={() => onRefresh()}
         >
           <RefreshCw size={18} className={loading ? "spin" : undefined} />
           {loading ? t("Refreshing…") : t("Refresh rooms")}
@@ -448,27 +657,46 @@ function Dashboard({
       <div className="dashboard-actions">
         <button
           className="button primary"
-          disabled={loading || busy}
-          onClick={() => setAction(managers.length ? "room" : "team")}
+          disabled={loading || busy || cooldown > 0}
+          onClick={() => changeAction(managers.length ? "room" : "team")}
         >
           <Plus size={16} />
           {t("Create room")}
         </button>
         <button
           className="button"
-          disabled={loading || busy}
-          onClick={() => setAction("join")}
+          disabled={loading || busy || cooldown > 0}
+          onClick={() => changeAction("join")}
         >
           {t("Join with invitation")}
         </button>
         <button
           className="text-button"
-          disabled={loading || busy}
-          onClick={() => setAction("team")}
+          disabled={loading || busy || cooldown > 0}
+          onClick={() => changeAction("team")}
         >
           {t("Create team")}
         </button>
       </div>
+      <RequestProgress pending={busy} label="Saving…" />
+      <RetryDelay seconds={cooldown} />
+      {uncertain && (
+        <section className="action-panel" role="alert">
+          <h2>{t("Check before trying again")}</h2>
+          <p>
+            {t(
+              "The request may have succeeded. Refresh your rooms and check the result before sending another request. A lost invitation code cannot be recovered; creating another invitation may use additional quota.",
+            )}
+          </p>
+          <button
+            className="button"
+            disabled={!checked || loading || cooldown > 0}
+            onClick={onAcknowledge}
+          >
+            {t("I checked — allow a new request")}
+          </button>
+        </section>
+      )}
       {error && (
         <p className="form-error" role="alert">
           {t(error)}
@@ -486,49 +714,58 @@ function Dashboard({
           {action === "team" && !managers.length && (
             <p>{t("First create a team for this room.")}</p>
           )}
-          <form onSubmit={(e) => void submit(e)}>
-            {action === "room" && (
-              <label>
-                {t("Team")}
-                <select name="team">
-                  {managers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {action === "join" ? (
-              <label>
-                {t("Invitation code")}
-                <input
-                  name="code"
-                  required
-                  minLength={43}
-                  maxLength={43}
-                  autoComplete="off"
-                />
-              </label>
-            ) : (
-              <label>
-                {t("Name")}
-                <input name="name" required maxLength={80} />
-              </label>
-            )}
-            <div className="dashboard-actions">
-              <button className="button primary" disabled={busy}>
-                {action === "join" ? t("Accept invitation") : t("Create")}
-              </button>
-              <button
-                type="button"
-                className="button"
-                disabled={busy}
-                onClick={() => setAction(null)}
-              >
-                {t("Cancel")}
-              </button>
-            </div>
+          <form
+            key={action}
+            onChange={() => setDirty(true)}
+            onSubmit={(e) => void submit(e)}
+          >
+            <fieldset className="request-fields" disabled={busy}>
+              {action === "room" && (
+                <label>
+                  {t("Team")}
+                  <select name="team">
+                    {managers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {action === "join" ? (
+                <label>
+                  {t("Invitation code")}
+                  <input
+                    name="code"
+                    required
+                    minLength={43}
+                    maxLength={43}
+                    autoComplete="off"
+                  />
+                </label>
+              ) : (
+                <label>
+                  {t("Name")}
+                  <input name="name" required maxLength={80} />
+                </label>
+              )}
+              <div className="dashboard-actions">
+                <button
+                  className="button primary"
+                  disabled={busy || uncertain || cooldown > 0}
+                >
+                  {action === "join" ? t("Accept invitation") : t("Create")}
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy || uncertain || cooldown > 0}
+                  onClick={() => changeAction(null)}
+                >
+                  {t("Cancel")}
+                </button>
+              </div>
+            </fieldset>
           </form>
         </section>
       )}
@@ -551,7 +788,7 @@ function Dashboard({
         </section>
       )}
       {loading ? (
-        <p role="status">{t("Loading rooms…")}</p>
+        <RequestProgress pending={loading} label="Loading rooms…" />
       ) : !teams.length && !error ? (
         <section className="dashboard-empty">
           <Users size={40} strokeWidth={1} />
@@ -575,23 +812,59 @@ function Dashboard({
                     ? t("ADMIN")
                     : t("MEMBER")}
               </span>
-              {team.role !== "member" && (
-                <button
-                  className="text-button"
-                  disabled={busy}
-                  onClick={() => void invite(team.id)}
-                >
-                  {t("Invite member")}
-                </button>
-              )}
+              <button
+                className="text-button"
+                aria-expanded={adminTeam === team.id}
+                aria-controls={`team-admin-${team.id}`}
+                onClick={() =>
+                  setAdminTeam(adminTeam === team.id ? null : team.id)
+                }
+              >
+                {t("Team menu")}
+              </button>
             </div>
+            {adminTeam === team.id && (
+              <section
+                className="action-panel"
+                id={`team-admin-${team.id}`}
+                aria-label={t("Team administration")}
+              >
+                <h3>
+                  {t("Team administration")} · {team.name}
+                </h3>
+                <p>
+                  {team.role === "member"
+                    ? t(
+                        "Ask an owner or admin to create rooms and invitations.",
+                      )
+                    : t(
+                        "Create invitations for this team. Codes are single-use.",
+                      )}
+                </p>
+                {team.role !== "member" && (
+                  <button
+                    className="button"
+                    disabled={busy || uncertain || cooldown > 0}
+                    onClick={() => void invite(team.id)}
+                  >
+                    {t("Invite member")}
+                  </button>
+                )}
+              </section>
+            )}
             {team.rooms.length ? (
               <div className="room-grid">
                 {team.rooms.map((room) => (
                   <button
                     className="room-card"
                     key={room.id}
-                    onClick={() => onRoom(room)}
+                    onClick={() => {
+                      if (
+                        !dirty ||
+                        window.confirm(t("Discard the unsaved form?"))
+                      )
+                        onRoom(room);
+                    }}
                   >
                     <FolderGit2 size={24} strokeWidth={1} />
                     <h3>{room.name}</h3>
@@ -634,10 +907,12 @@ function RoomWorkspace({
   room,
   session,
   onBack,
+  onExpired,
 }: {
   room: Room;
   session: Session;
   onBack: () => void;
+  onExpired: () => void;
 }) {
   useTranslation();
   const [snapshot, setSnapshot] = useState<RepositorySnapshot | null>(null);
@@ -649,6 +924,7 @@ function RoomWorkspace({
   });
   const [members, setMembers] = useState<Member[]>([]);
   const [memberError, setMemberError] = useState("");
+  const [memberAttempt, setMemberAttempt] = useState(0);
   const root = useRef<string | null>(null);
   const onSnapshot = useCallback((value: RepositorySnapshot | null) => {
     if (root.current !== (value?.root ?? null)) setEnabled(false);
@@ -657,6 +933,10 @@ function RoomWorkspace({
   }, []);
   const presence = sharedPresence(room.id, snapshot, enabled, sharing);
   const live = useRoom(room.id, session.token, presence);
+  const slowConnection = useSlowRequest(live.status === "connecting");
+  useEffect(() => {
+    if (live.status === "expired") onExpired();
+  }, [live.status, onExpired]);
   useEffect(() => {
     let active = true;
     void api<Member[]>(`/teams/${room.team_id}/members`, session.token)
@@ -667,12 +947,20 @@ function RoomWorkspace({
         }
       })
       .catch((cause) => {
-        if (active) setMemberError(message(cause));
+        if (active) {
+          if (
+            cause instanceof ApiError &&
+            [401, 403, 404].includes(cause.status)
+          )
+            setMembers([]);
+          setMemberError(message(cause));
+          if (cause instanceof ApiError && cause.status === 401) onExpired();
+        }
       });
     return () => {
       active = false;
     };
-  }, [room.team_id, session.token, live.status]);
+  }, [room.team_id, session.token, live.status, memberAttempt, onExpired]);
   const online = new Map(live.state?.members.map((m) => [m.user_id, m]) ?? []);
   const visibleMembers = [
     ...members,
@@ -681,11 +969,12 @@ function RoomWorkspace({
     ),
   ];
   const statusLabel: Record<string, string> = {
-    connecting: t("Connecting…"),
+    connecting: t(slowConnection ? slowRequestMessage : "Connecting…"),
+    expired: t("Your session has expired. Sign in again."),
     online: t("Connected live"),
     offline: t("Connection lost — reconnecting…"),
     denied: t(
-      "Access expired or was revoked. Return to the dashboard and sign in again.",
+      "Room access was denied. Return to All rooms to refresh your access.",
     ),
     replaced: t("This room is open in another window."),
     invalid: t("Shared status was rejected. Turn off sharing and reconnect."),
@@ -701,7 +990,8 @@ function RoomWorkspace({
         <span role="status" className="connection">
           {statusLabel[live.status]}
         </span>
-        {["offline", "replaced", "invalid"].includes(live.status) && (
+        {(["offline", "replaced", "invalid"].includes(live.status) ||
+          slowConnection) && (
           <button className="text-button" onClick={live.reconnect}>
             {t("Reconnect")}
           </button>
@@ -725,26 +1015,45 @@ function RoomWorkspace({
           />{" "}
           {t("This repository belongs to this room — share Git status")}
         </label>
-        <div className="privacy-options">
-          {(
-            [
-              ["branch", t("Branch name")],
-              ["files", t("File names")],
-              ["commit_message", t("Commit message")],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="check-label">
-              <input
-                type="checkbox"
-                checked={sharing[key]}
-                onChange={(e) =>
-                  setSharing((s) => ({ ...s, [key]: e.target.checked }))
-                }
-              />
-              {label}
-            </label>
-          ))}
-        </div>
+        <SettingsContent section="activity">
+          <p role="status">
+            {enabled ? t("Git sharing is on.") : t("Git sharing is off.")}
+          </p>
+          {enabled && (
+            <button className="button" onClick={() => setEnabled(false)}>
+              {t("Stop sharing")}
+            </button>
+          )}
+        </SettingsContent>
+        <SettingsContent section="privacy">
+          <div className="privacy-options">
+            {(
+              [
+                ["branch", t("Branch name")],
+                ["files", t("File names")],
+                ["commit_message", t("Commit message")],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="check-label">
+                <input
+                  type="checkbox"
+                  checked={sharing[key]}
+                  onChange={(e) =>
+                    setSharing((s) => ({ ...s, [key]: e.target.checked }))
+                  }
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          <p>{t("Metadata changes apply immediately to this room.")}</p>
+        </SettingsContent>
+        {enabled && (
+          <button className="button" onClick={() => setEnabled(false)}>
+            {t("Stop sharing")}
+          </button>
+        )}
+        <p>{t("Choose shared fields in Settings → Privacy.")}</p>
         <p className="muted">
           {enabled
             ? t(
@@ -772,7 +1081,17 @@ function RoomWorkspace({
             {t("People in this room")}{" "}
             <span className="count">{online.size}</span>
           </h2>
-          {memberError && <p role="alert">{t(memberError)}</p>}
+          {memberError && (
+            <p role="alert">
+              {t(memberError)}{" "}
+              <button
+                className="text-button"
+                onClick={() => setMemberAttempt((n) => n + 1)}
+              >
+                {t("Retry loading members")}
+              </button>
+            </p>
+          )}
           {visibleMembers.map((member) => {
             const peer = online.get(member.user_id);
             const git = peer?.presence;

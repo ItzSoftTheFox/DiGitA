@@ -1,3 +1,4 @@
+import { SettingsContent } from "./LanguageSettings";
 import { t, useTranslation } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
@@ -124,17 +125,19 @@ export function ConflictRadar({
           <Radar size={20} /> {t("Conflict Radar")}{" "}
           <span className="count">{conflicts.length}</span>
         </h2>
-        {isTauri() && (
-          <button
-            className="text-button"
-            disabled={busy}
-            onClick={() => void toggleNotifications()}
-          >
-            {notifications
-              ? t("Disable system notifications")
-              : t("Enable system notifications")}
-          </button>
-        )}
+        <SettingsContent section="audio">
+          {isTauri() && (
+            <button
+              className="text-button"
+              disabled={busy}
+              onClick={() => void toggleNotifications()}
+            >
+              {notifications
+                ? t("Disable system notifications")
+                : t("Enable system notifications")}
+            </button>
+          )}
+        </SettingsContent>
       </div>
       <p className="muted">
         {t(
@@ -165,11 +168,13 @@ export function ConflictRadar({
           )}
         </p>
       )}
-      {error && (
-        <p role="alert" className="muted">
-          {t(error)}
-        </p>
-      )}
+      <SettingsContent section="audio">
+        {error && (
+          <p role="alert" className="muted">
+            {t(error)}
+          </p>
+        )}
+      </SettingsContent>
       <ul className="conflict-list">
         {conflicts.map((c) => (
           <li key={c.id}>

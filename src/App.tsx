@@ -1,3 +1,4 @@
+import { SettingsButton, SettingsContent } from "./LanguageSettings";
 import { t, useTranslation, dateLocale } from "./i18n";
 import { useEffect, useState, type ReactNode } from "react";
 import type { RepositorySnapshot } from "./repository";
@@ -139,6 +140,9 @@ export default function App({
 
   return (
     <div className={embedded ? "app-shell embedded-workspace" : "app-shell"}>
+      <SettingsContent section="projects">
+        <p>{repo ? repo.name : t("No repository connected")}</p>
+      </SettingsContent>
       <aside className="sidebar">
         <a
           className="brand"
@@ -182,6 +186,7 @@ export default function App({
           )}
         </div>
         <div className="sidebar-bottom">
+          {!embedded && <SettingsButton />}
           <div className="privacy-card">
             <ShieldCheck size={19} />
             <p>

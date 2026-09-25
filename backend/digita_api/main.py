@@ -120,12 +120,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="DiGitA API", version="0.2.0", lifespan=lifespan)
     app.state.sessions = sessions
     app.add_middleware(RequestBodyLimit, max_bytes=settings.max_request_bytes)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.allowed_origins,
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type"],
-    )
     app.include_router(router(Hub(sessions), settings.allowed_origins))
     auth_limit = AuthRateLimit(settings.auth_requests_per_minute)
     api_limit = AuthRateLimit(settings.api_requests_per_minute)
@@ -163,6 +157,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
         return response
+
+    # Wrap rate-limit responses too, so trusted clients can read their cooldown.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins,
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type"],
+        expose_headers=["Retry-After"],
+    )
 
     @app.get("/health")
     def health(session: DB):

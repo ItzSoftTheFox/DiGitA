@@ -1,6 +1,6 @@
 # 0.2.0 — phase 1: validating the 0.1.0 pilot
 
-Date: **2026-09-24**. Status: **automated checks passed; manual testing partially reported**.
+Date: **2026-09-24**. Status: **code/automated work complete; native validation partial, sharing/radar deferred**.
 This record does not represent a 0.2.0 release or verification on two desktops.
 
 ## Environment and results
@@ -55,6 +55,14 @@ or package installation was performed. Historical checks elsewhere do not replac
 a current run. No build was published and `docs/downloads/` was not replaced.
 Hosted Actions remained disabled.
 
+## Scope decision — continue to phase 2
+
+On 2026-09-24 the user explicitly deferred manual sharing/radar checks and
+requested continuing with phase 2. N2/N3 remain deferred, not passed; other
+unconfirmed native checks remain open. Automated/code work from phase 1 is
+complete, while full two-desktop validation is not. Phase 2 results are recorded
+in [the separate evidence report](validation-0.2.0-phase-2.md).
+
 ## Manual verification on two desktops
 
 Use two different accounts, two native clients, and two working copies of the
@@ -82,8 +90,8 @@ was never tried.
 | ID | Steps and expected result | Result |
 | --- | --- | --- |
 | N1 | Sign in as A and B. A creates a team and room and invites B. B accepts; both enter the same room and see each other online. | Partial: user confirms sign-in, invitations, and rooms work; team creation and online-member indicator not separately confirmed. |
-| N2 | Both connect their test repositories. Before consent, only online presence is visible. Enable file-name sharing and edit the same relative path. Both see radar warnings. | Not individually confirmed |
-| N3 | A disables file names, then all sharing. B no longer sees the metadata or overlap. Switching rooms/repositories requires fresh consent. | Not individually confirmed |
+| N2 | Both connect their test repositories. Before consent, only online presence is visible. Enable file-name sharing and edit the same relative path. Both see radar warnings. | Deferred by user on 2026-09-24; not verified |
+| N3 | A disables file names, then all sharing. B no longer sees the metadata or overlap. Switching rooms/repositories requires fresh consent. | Deferred by user on 2026-09-24; not verified |
 | N4 | Both explicitly enable personal listening. A starts ambience; B hears it. Changing A's volume does not affect B. B pauses playback for both. | Not individually confirmed |
 | N5 | With an unlocked keyring, remember sign-in, close, and relaunch. The account restores; the local repository and sharing consent do not automatically restore. | Not individually confirmed |
 | N6 | In a separate test desktop session without a working keyring, verify in-memory sign-in and local mode. Restarting without stored credentials returns to login. Do not alter a personal keyring for this test. | Not individually confirmed |

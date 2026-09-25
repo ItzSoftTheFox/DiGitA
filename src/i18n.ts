@@ -48,6 +48,10 @@ export function useTranslation() {
 export function dateLocale() {
   return language === "cs" ? "cs-CZ" : "en-US";
 }
+export function canonicalMessage(message: string) {
+  return english.get(message) ?? message;
+}
+
 export function t(
   message: string,
   values: Record<string, string | number> = {},
