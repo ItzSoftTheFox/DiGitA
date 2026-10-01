@@ -18,9 +18,10 @@ coverage/
 !.env.*.example
 *.log
 .DS_Store
+.directory
 .agents/
 .codex/
-EoROrtScr/
+.aws/
 
 # Private keys, signing credentials, and local secret stores
 .ssh/
@@ -49,8 +50,9 @@ id_ed25519
 *.sql.gz
 backups/
 
-# Private project planning document
-/devroom-project.md
+# Private notes and one-off development tools
+/docs/local/
+/scripts/local/
 
 # Python backend
 .venv/

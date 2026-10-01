@@ -18,21 +18,25 @@ import {
   X,
 } from "lucide-react";
 import App from "./App";
-import { QuickStart, needsIntroduction } from "./QuickStart";
-import { NetworkNotice, RequestProgress, RetryDelay } from "./RequestFeedback";
+import { QuickStart, needsIntroduction } from "./components/QuickStart";
+import {
+  NetworkNotice,
+  RequestProgress,
+  RetryDelay,
+} from "./components/RequestFeedback";
 import {
   errorMessage,
   useRetryDelay,
   useSlowRequest,
   slowRequestMessage,
-} from "./requestFeedback";
+} from "./hooks/requestFeedback";
 import {
   LanguageSettings,
   SettingsButton,
   SettingsContent,
-} from "./LanguageSettings";
-import { AmbientPlayer } from "./AmbientPlayer";
-import { ConflictRadar } from "./ConflictRadar";
+} from "./components/LanguageSettings";
+import { AmbientPlayer } from "./components/AmbientPlayer";
+import { ConflictRadar } from "./components/ConflictRadar";
 import {
   api,
   ApiError,
@@ -41,10 +45,10 @@ import {
   type Room,
   type Team,
   type User,
-} from "./api";
-import { sharedPresence, useRoom, type Sharing } from "./useRoom";
-import type { RepositorySnapshot } from "./repository";
-import "./collaboration.css";
+} from "./lib/api";
+import { sharedPresence, useRoom, type Sharing } from "./hooks/useRoom";
+import type { RepositorySnapshot } from "./lib/repository";
+import "./styles/collaboration.css";
 
 type Session = { token: string; user: User; storageNotice?: string };
 type TeamView = Team & { rooms: Room[]; role: Member["role"] };

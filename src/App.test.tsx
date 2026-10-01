@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { demoRepository } from "./repository";
+import { demoRepository } from "./lib/repository";
 
 const mocks = vi.hoisted(() => ({
   desktop: vi.fn(),

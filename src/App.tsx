@@ -1,7 +1,7 @@
-import { SettingsButton, SettingsContent } from "./LanguageSettings";
+import { SettingsButton, SettingsContent } from "./components/LanguageSettings";
 import { t, useTranslation, dateLocale } from "./i18n";
 import { useEffect, useState, type ReactNode } from "react";
-import type { RepositorySnapshot } from "./repository";
+import type { RepositorySnapshot } from "./lib/repository";
 import { isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
@@ -30,8 +30,8 @@ import {
   isStaged,
   isUnstaged,
   statusLabel,
-} from "./repository";
-import { useRepository } from "./useRepository";
+} from "./lib/repository";
+import { useRepository } from "./hooks/useRepository";
 
 type Filter = "all" | "staged" | "unstaged";
 const clock = (date: Date) =>

@@ -9,8 +9,8 @@ const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
 }));
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true }));
-vi.mock("./api", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./api")>()),
+vi.mock("./lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./lib/api")>()),
   api: mocks.api,
   credentials: { read: mocks.read, save: mocks.save, clear: mocks.clear },
 }));
@@ -25,7 +25,7 @@ beforeEach(() => {
     removeItem: vi.fn(),
   });
 });
-import { ApiError } from "./api";
+import { ApiError } from "./lib/api";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

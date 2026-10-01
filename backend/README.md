@@ -216,7 +216,7 @@ isolation, role changes, removal, invitation expiry/revocation, concurrent
 single-use acceptance, rate limits, migration/schema consistency, live metadata
 privacy and revocation, conflict lifecycle, and ambient clock/control isolation.
 The historical Phase 5 run passed 45 tests on SQLite; the last PostgreSQL run was
-the 39-test Phase 4 suite. See the [main README](../Readme.md) for validation
+the 39-test Phase 4 suite. See the [development guide](../docs/development.md) for validation
 history and the Windows VM/SSH setup.
 
 To change the schema, edit the models and run `uv run alembic revision
@@ -293,4 +293,4 @@ starting the updated service or running the explicit command above.
 Quota/cleanup validation: 78 tests passed on SQLite and PostgreSQL 18.6 (UTF-8).
 The paused CI workflow defines a PostgreSQL 17 job, matching Compose; it does not
 currently run. For the current local verification and remaining manual checks,
-see [0.2.0 phase 1](../docs/validation-0.2.0-phase-1.md).
+see [0.2.0 phase 1](../docs/history/validation-0.2.0-phase-1.md).
