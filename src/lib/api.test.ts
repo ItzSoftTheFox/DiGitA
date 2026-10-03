@@ -175,3 +175,28 @@ describe("request failures", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+it("accepts an empty team deletion response and preserves the owner-only denial", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ detail: "Only the team owner can delete this team." }),
+        { status: 403 },
+      ),
+    );
+  vi.stubGlobal("fetch", fetch);
+  await expect(api("/teams/team", "token", "DELETE")).resolves.toBeUndefined();
+  expect(fetch).toHaveBeenCalledWith(
+    `${API_URL}/teams/team`,
+    expect.objectContaining({
+      method: "DELETE",
+      headers: { Authorization: "Bearer token" },
+    }),
+  );
+  await expect(api("/teams/team", "token", "DELETE")).rejects.toMatchObject({
+    status: 403,
+    message: "Only the team owner can delete this team.",
+  });
+});

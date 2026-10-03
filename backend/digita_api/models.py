@@ -23,6 +23,9 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
     email: Mapped[str] = mapped_column(String(254), unique=True)
     display_name: Mapped[str] = mapped_column(String(80))
+    avatar: Mapped[str] = mapped_column(String(16), default="initials", server_default="initials")
+    avatar_color: Mapped[str] = mapped_column(String(16), default="slate", server_default="slate")
+    custom_status: Mapped[str] = mapped_column(String(120), default="", server_default="")
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 

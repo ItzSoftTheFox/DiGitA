@@ -59,3 +59,40 @@ describe("shared metadata", () => {
     expect(data.changed_count).toBe(1);
   });
 });
+
+it("rejects incomplete snapshots and keeps tracking and operation fields local", () => {
+  const sharing = { branch: true, files: true, commit_message: true };
+  expect(
+    sharedPresence(
+      "room",
+      { ...demoRepository, statusComplete: false },
+      true,
+      sharing,
+    ),
+  ).toBeNull();
+  const payload = sharedPresence(
+    "room",
+    {
+      ...demoRepository,
+      upstream: "origin/private",
+      ahead: 7,
+      behind: 3,
+      operation: "merge",
+      statusComplete: true,
+    },
+    true,
+    sharing,
+  )!;
+  expect(Object.keys(payload).sort()).toEqual(
+    [
+      "repository_id",
+      "branch",
+      "files",
+      "changed_count",
+      "commit_hash",
+      "commit_message",
+      "sharing",
+    ].sort(),
+  );
+  expect(JSON.stringify(payload)).not.toContain("origin/private");
+});

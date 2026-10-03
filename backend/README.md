@@ -50,6 +50,27 @@ and can be accepted once. They grant the `member` role. Existing members get a
 with `DELETE /teams/{team_id}/invitations/{invite_id}`. Codes are shared manually;
 this service does not send email.
 
+Owners/admins can inspect active invitations with `GET /teams/{team_id}/invitations`.
+The list includes only `id` and `expires_at`; codes and their hashes are never
+returned. Expired, consumed, and revoked invitations are absent.
+
+## Account profile
+
+`PATCH /auth/me` replaces the authenticated account's profile with
+`display_name` (trimmed, 1–80 characters), `avatar` (`initials`, `fox`, `cat`,
+`robot`, `leaf`), `avatar_color` (`slate`, `blue`, `green`, `amber`, `rose`), and
+`custom_status` (trimmed, up to 120 characters). The display name is required.
+Omitted optional fields reset to `initials`, `slate`, and empty status. Nulls,
+unsupported values and additional fields are rejected with 422; email, password,
+account ID and team role cannot be changed through this route.
+
+Registration and `GET /auth/me` include these profile fields. Existing accounts
+receive the defaults when the account-personalization migration is applied.
+Member responses include the same profile fields without email. Profile updates
+broadcast immediately to existing live rooms while preserving metadata sharing,
+presence, conflicts and ambient state. Historical timeline names remain as
+recorded when their events occurred.
+
 ## Permissions
 
 Rooms belong to a team. Every team member can read all rooms in that team.
@@ -63,13 +84,25 @@ There is no separate room membership or private-room policy in the current proto
 | Set another member's role to admin/member                       | Yes   | No    | No     |
 | Remove another member                                           | Yes   | No    | No     |
 | Leave the team                                                  | No    | Yes   | Yes    |
+| Delete the team and its rooms, memberships and invitations       | Yes   | No    | No     |
 
-Role changes, removal/leaving, and invitation revocation are currently available
-through the API; the desktop does not yet expose these administration actions.
+The desktop Team menu exposes role changes, removal/leaving and invitation
+administration according to these permissions.
 
-The owner cannot be demoted or removed. Ownership transfer and team deletion
-are not implemented. Membership is checked for every team/room request, so a
+The owner cannot be demoted or removed. Ownership transfer is not implemented.
+`DELETE /teams/{team_id}` requires the authenticated owner and returns an empty
+204 response. Joined admins/members receive 403 (`Only the team owner can delete
+this team.`); non-members and missing teams receive 404; invalid sessions receive
+401. Deletion atomically removes the team, rooms, memberships and invitations.
+After commit, affected live sockets close with code 4403 and their live room state
+is purged. Accounts, sessions and other teams remain available. No migration or
+new WebSocket message is needed. The desktop confirms deletion before calling it.
+
+Membership is checked for every team/room request, so a
 removed member loses access even while their account session is still valid.
+Removal/leaving closes existing affected live sockets with code 4403 and removes
+their presence/conflict participation immediately. Role updates broadcast the
+current role to existing live clients; every HTTP action still checks stored roles.
 Non-members receive 404 for team resources. Member lists expose display names
 and IDs, not other members' email addresses.
 
@@ -122,7 +155,8 @@ optional `commit_hash`, and independent `sharing` flags for `branch`, `files`, a
 them. The client confirms its working copy belongs to the room; no Git remote
 URL or local folder name is used as a shared identity.
 
-The server sends `room.state` snapshots with online members and the most recent
+The server sends `room.state` snapshots with online members (`user_id`,
+`display_name`, `avatar`, `avatar_color`, `custom_status`, `role`, `presence`) and the most recent
 100 generic timeline events, current conflicts, and ambient playback state. New connections receive the complete current state.
 The client resends its current permitted presence after reconnecting. A `ping`
 message every 15 seconds receives `pong`; unresponsive clients are disconnected
@@ -261,7 +295,8 @@ At the session limit, a successful new login revokes the session with the earlie
 expiry (normally the oldest login); wrong-password attempts cannot revoke sessions.
 Lowering limits never deletes users, teams, rooms or memberships. It blocks new
 allocations until usage drops; existing excess sessions are trimmed on next login.
-Room/team deletion is not implemented, so their capacity cannot yet be freed in the UI.
+Owner team deletion frees its team/membership capacity and removes the team's
+rooms/invitations. Individual room deletion is not implemented.
 
 All HTTP mutations and cleanup share a transaction-scoped database write lock
 (PostgreSQL advisory lock; SQLite BEGIN IMMEDIATE). Counting and allocation are

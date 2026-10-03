@@ -13,6 +13,11 @@ export interface RepositorySnapshot {
   name: string;
   branch: string;
   detached: boolean;
+  upstream?: string | null;
+  ahead?: number | null;
+  behind?: number | null;
+  operation?: "merge" | "rebase" | "cherry-pick" | null;
+  statusComplete?: boolean;
   commit: {
     hash: string;
     subject: string;
@@ -27,6 +32,8 @@ export const isStaged = (file: ChangedFile) =>
   ![".", "?"].includes(file.indexStatus) && !file.conflicted;
 export const isUnstaged = (file: ChangedFile) =>
   file.worktreeStatus !== "." && !file.conflicted;
+export const isUntracked = (file: ChangedFile) =>
+  file.indexStatus === "?" && file.worktreeStatus === "?";
 export const statusLabel = (value: string) =>
   t(
     {

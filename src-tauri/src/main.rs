@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod preferences;
+use preferences::{clear_preferences, load_preferences, save_preferences};
+
 #[tauri::command]
 async fn read_repository(path: String) -> Result<git_presence::RepositorySnapshot, String> {
     tauri::async_runtime::spawn_blocking(move || git_presence::read_repository(&path))
@@ -11,7 +14,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
-        .invoke_handler(tauri::generate_handler![read_repository, load_session, save_session, clear_session])
+        .invoke_handler(tauri::generate_handler![read_repository, load_session, save_session, clear_session, load_preferences, save_preferences, clear_preferences])
         .run(tauri::generate_context!())
         .expect("DiGitA could not start");
 }

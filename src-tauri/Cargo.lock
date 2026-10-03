@@ -818,10 +818,13 @@ version = "0.1.0"
 dependencies = [
  "git-presence",
  "keyring",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-notification",
+ "tempfile",
 ]
 
 [[package]]

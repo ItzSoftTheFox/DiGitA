@@ -36,7 +36,8 @@ it("ignores a stale result after switching repositories", async () => {
   });
   rerender({ path: "/second" });
   await act(async () => {});
-  expect(result.current.snapshot?.name).toBe("second");
+  expect(result.current.snapshot).toBeNull();
+  expect(readRepository).toHaveBeenCalledTimes(1);
   await act(async () => {
     resolveFirst(demoRepository);
   });
@@ -66,4 +67,85 @@ it("does not overlap requests and ignores results after disconnecting", async ()
   });
   expect(result.current.snapshot).toBeNull();
   expect(result.current.busy).toBe(false);
+});
+
+it("skips superseded queued projects and never polls an old project again", async () => {
+  let finish!: (value: RepositorySnapshot) => void;
+  vi.mocked(readRepository).mockImplementation((path) =>
+    path === "/first"
+      ? new Promise((resolve) => {
+          finish = resolve;
+        })
+      : Promise.resolve({ ...demoRepository, root: path, name: path }),
+  );
+  const { result, rerender } = renderHook(({ path }) => useRepository(path), {
+    initialProps: { path: "/first" },
+  });
+  rerender({ path: "/second" });
+  rerender({ path: "/third" });
+  expect(result.current.snapshot).toBeNull();
+  expect(readRepository).toHaveBeenCalledTimes(1);
+  await act(async () => finish(demoRepository));
+  expect(result.current.snapshot?.root).toBe("/third");
+  expect(vi.mocked(readRepository).mock.calls.map(([path]) => path)).toEqual([
+    "/first",
+    "/third",
+  ]);
+});
+
+it("serializes reads across workspace unmounts", async () => {
+  let finish!: (value: RepositorySnapshot) => void;
+  vi.mocked(readRepository)
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    )
+    .mockResolvedValue(demoRepository);
+  const first = renderHook(() => useRepository("/first"));
+  first.unmount();
+  const next = renderHook(() => useRepository("/second"));
+  expect(readRepository).toHaveBeenCalledTimes(1);
+  await act(async () => finish(demoRepository));
+  expect(readRepository).toHaveBeenCalledTimes(2);
+  expect(next.result.current.snapshot).toBe(demoRepository);
+});
+
+it("rejects incomplete results and retains only the last complete snapshot", async () => {
+  vi.mocked(readRepository)
+    .mockResolvedValueOnce(demoRepository)
+    .mockResolvedValueOnce({
+      ...demoRepository,
+      files: [],
+      statusComplete: false,
+    });
+  const { result } = renderHook(() => useRepository("/project"));
+  await act(async () => {});
+  await act(async () => result.current.refresh());
+  expect(result.current.snapshot).toBe(demoRepository);
+  expect(result.current.stale).toBe(true);
+  expect(result.current.error).toContain("incomplete");
+});
+
+it("expires a successful snapshot while a native read stalls and recovers only on success", async () => {
+  vi.useFakeTimers();
+  let finish!: (value: RepositorySnapshot) => void;
+  vi.mocked(readRepository)
+    .mockResolvedValueOnce(demoRepository)
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+  const { result } = renderHook(() => useRepository("/project"));
+  await act(async () => {});
+  expect(result.current.stale).toBe(false);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(15000);
+  });
+  expect(readRepository).toHaveBeenCalledTimes(2);
+  expect(result.current.stale).toBe(true);
+  expect(result.current.busy).toBe(true);
+  await act(async () => finish(demoRepository));
+  expect(result.current.stale).toBe(false);
 });

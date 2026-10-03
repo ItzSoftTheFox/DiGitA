@@ -230,8 +230,9 @@ code,
   display: grid;
   place-items: center;
 }
-.local-profile > .square-dot {
+.local-profile > .sidebar-settings {
   margin-left: auto;
+  margin-bottom: 0;
 }
 .square-dot {
   display: inline-block;
@@ -1075,6 +1076,18 @@ h1 > span {
   .local-profile {
     display: none;
   }
+  .sidebar .local-profile {
+    display: flex;
+    margin-inline: -12px;
+    padding: 18px 12px;
+    justify-content: center;
+  }
+  .sidebar .local-profile > div {
+    display: none;
+  }
+  .sidebar .local-profile > .sidebar-settings {
+    margin: 0;
+  }
   .nav-active {
     padding: 12px;
     justify-content: center;
@@ -1266,4 +1279,100 @@ h1 > span {
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+.recent-projects {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.recent-projects li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #252525;
+  padding-bottom: 12px;
+}
+.recent-projects li > div {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.recent-projects code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.sidebar-recent {
+  max-height: 30vh;
+  overflow-y: auto;
+  min-height: 0;
+}
+.sidebar-recent .sidebar-add {
+  width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.sidebar-recent .sidebar-add[aria-current="true"] {
+  color: #fff;
+}
+
+.git-tracking {
+  border: 1px solid #333;
+  padding: 18px 24px;
+  margin-bottom: 24px;
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.operation-status {
+  color: #f5cb82;
+  font-weight: 500;
+}
+.copy-path {
+  display: inline-flex;
+  vertical-align: middle;
+  padding: 5px;
+  margin-left: 6px;
+}
+.full-commit-hash {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.repo-actions {
+  flex-wrap: wrap;
+}
+.project-switcher {
+  max-width: 180px;
+  background: #151515;
+  color: #eee;
+  border: 1px solid #444;
+  padding: 8px;
+}
+.table-toolbar .tabs {
+  flex-wrap: wrap;
+}
+@media (max-width: 1000px) {
+  .signed-main .repository-header {
+    flex-wrap: wrap;
+  }
+  .signed-main .table-toolbar {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .signed-main .metrics {
+    grid-template-columns: 1fr;
+  }
+}
+.file-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px;
+  border-top: 1px solid #333;
+  font-size: 12px;
 }

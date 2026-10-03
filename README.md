@@ -1,13 +1,13 @@
 ![DiGitA — A quieter workspace. Better teamwork.](docs/images/banner.svg)
 
 DiGitA is a Tauri desktop workspace for local Git activity and team collaboration.
-Team rooms provide online presence, early warnings when people edit the same file,
-and shared ambient audio. Repository contents stay on your machine; sharing Git
+Team rooms provide online presence and early warnings when people edit the same file. Repository contents stay on your machine; sharing Git
 metadata is opt-in. Local Git browsing works without an account.
 
 The project is a **development pilot**, with Arch Linux x86_64 as the current
-distribution priority. Settings and first-launch recovery are implemented;
-remembered projects and profile editing remain planned. Native pilot checks and
+distribution priority. Settings, first-launch recovery and remembered local
+projects/preferences, team administration, profile editing, sidebar team switching
+and bounded local Git tracking are implemented. Native pilot checks and
 clean-install validation are still open. See the [validation records](docs/README.md#design-and-validation).
 
 ## Start developing
@@ -31,22 +31,22 @@ desktop development server separately because both use port 1420.
 
 ## Where to find things
 
-| Path | Purpose |
-| --- | --- |
-| `src/App.tsx` | Local Git workspace |
-| `src/DesktopApp.tsx` | Sign-in, team dashboard, room navigation |
-| `src/components/` | Settings, introduction, radar, audio, request feedback |
-| `src/hooks/` | Repository polling, room connection, request state |
-| `src/lib/` | HTTP API, credentials, native Git access and demo data |
-| `src/i18n/` | Language state and Czech translations |
-| `src/styles/` | Application styles |
-| `src-tauri/` | Native Rust shell and desktop configuration |
-| `crates/git-presence/` | Standalone Git inspection library |
-| `backend/` | FastAPI, database migrations and API tests |
-| `e2e/` | Playwright browser scenarios |
-| `website/` | Public website source |
-| `docs/` | Documentation and published GitHub Pages website |
-| `scripts/`, `packaging/` | Cleanup, audio generation and release tooling |
+| Path                         | Purpose                                                |
+| ---------------------------- | ------------------------------------------------------ |
+| `src/App.tsx`              | Local Git workspace                                    |
+| `src/DesktopApp.tsx`       | Sign-in, team dashboard, room navigation               |
+| `src/components/`          | Settings, introduction, radar drawer, request feedback |
+| `src/hooks/`               | Repository polling, room connection, request state     |
+| `src/lib/`                 | HTTP API, credentials, native Git access and demo data |
+| `src/i18n/`                | Language state and Czech translations                  |
+| `src/styles/`              | Application styles                                     |
+| `src-tauri/`               | Native Rust shell and desktop configuration            |
+| `crates/git-presence/`     | Standalone Git inspection library                      |
+| `backend/`                 | FastAPI, database migrations and API tests             |
+| `e2e/`                     | Playwright browser scenarios                           |
+| `website/`                 | Public website source                                  |
+| `docs/`                    | Documentation and published GitHub Pages website       |
+| `scripts/`, `packaging/` | Cleanup, audio generation and release tooling          |
 
 Frontend tests live beside the code they verify. The [code map](docs/codebase.md)
 explains the main entry points and data flow.
@@ -67,6 +67,7 @@ and the published website in `docs/`. Stop development servers before cleaning.
 
 ## Documentation
 
+- [Start the Codex team with `npm run codex`](docs/coordination.md)
 - [Documentation index](docs/README.md)
 - [Detailed setup, behavior and troubleshooting](docs/development.md)
 - [Backend API and configuration](backend/README.md)

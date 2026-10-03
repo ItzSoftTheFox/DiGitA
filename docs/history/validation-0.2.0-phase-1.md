@@ -61,7 +61,7 @@ On 2026-09-24 the user explicitly deferred manual sharing/radar checks and
 requested continuing with phase 2. N2/N3 remain deferred, not passed; other
 unconfirmed native checks remain open. Automated/code work from phase 1 is
 complete, while full two-desktop validation is not. Phase 2 results are recorded
-in [the separate evidence report](validation-0.2.0-phase-2.md).
+in [the consolidated milestones](milestones-0.2.0.md).
 
 ## Manual verification on two desktops
 
@@ -93,7 +93,7 @@ was never tried.
 | N2 | Both connect their test repositories. Before consent, only online presence is visible. Enable file-name sharing and edit the same relative path. Both see radar warnings. | Deferred by user on 2026-09-24; not verified |
 | N3 | A disables file names, then all sharing. B no longer sees the metadata or overlap. Switching rooms/repositories requires fresh consent. | Deferred by user on 2026-09-24; not verified |
 | N4 | Both explicitly enable personal listening. A starts ambience; B hears it. Changing A's volume does not affect B. B pauses playback for both. | Not individually confirmed |
-| N5 | With an unlocked keyring, remember sign-in, close, and relaunch. The account restores; the local repository and sharing consent do not automatically restore. | Not individually confirmed |
+| N5 | With an unlocked keyring, remember sign-in, close, and relaunch. The account and permitted local project preferences restore; Git sharing consent and listening do not. | Not individually confirmed |
 | N6 | In a separate test desktop session without a working keyring, verify in-memory sign-in and local mode. Restarting without stored credentials returns to login. Do not alter a personal keyring for this test. | Not individually confirmed |
 | N7 | Revoke a test client's session on an isolated backend. Test startup restoration and an already open room. Access is rejected and private room data disappears. | Not individually confirmed |
 | N8 | B disconnects the network while sharing and listening. Local Git works, audio pauses, and live data disappears. Reconnection restores current state without duplicates; previously permitted sharing resumes within the same room visit. | Not individually confirmed |

@@ -96,7 +96,7 @@ def test_groups_multiple_members_exact_paths_and_suppresses_flapping():
 
 def test_failed_delivery_removes_stale_warning_from_survivors():
     hub = Hub(None)
-    hub.identity = lambda *_: ("user", "name")
+    hub.identity = lambda *_: ("user", "name", "initials", "slate", "", "member")
     first, second = peer("a", ["file"]), peer("b", ["file"])
     second.socket.send_json.side_effect = OSError("disconnected")
     live = LiveRoom(peers={"a": first, "b": second})

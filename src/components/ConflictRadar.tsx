@@ -1,4 +1,5 @@
 import { SettingsContent } from "./LanguageSettings";
+import { usePreferences } from "./Preferences";
 import { t, useTranslation } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
@@ -6,7 +7,7 @@ import {
   isPermissionGranted,
   requestPermission,
 } from "@tauri-apps/plugin-notification";
-import { Radar } from "lucide-react";
+import { Radar, X } from "lucide-react";
 import type { Presence, RoomState } from "../hooks/useRoom";
 
 export function ConflictRadar({
@@ -19,9 +20,18 @@ export function ConflictRadar({
   presence: Presence | null;
 }) {
   useTranslation();
-  const [notifications, setNotifications] = useState(false);
+  const preferences = usePreferences();
+  const [sessionNotifications, setNotifications] = useState(false);
+  const notifications = preferences
+    ? preferences.preferences.notificationsEnabled &&
+      preferences.notificationsGranted
+    : sessionNotifications;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const drawerWarnings = useRef(new Set<string>());
+  const drawerSynchronized = useRef(false);
   // Hide our withdrawn metadata immediately, without waiting for the server echo.
   const conflicts = (state?.conflicts ?? []).filter(
     (c) =>
@@ -29,12 +39,57 @@ export function ConflictRadar({
       (presence?.sharing.files && presence.files?.includes(c.path)),
   );
   const mine = conflicts.filter((c) => c.user_ids.includes(userId));
-  const signature = JSON.stringify(mine.map((c) => c.id).sort());
   const connected = state !== null;
   const serverPresence =
     state?.members.find((m) => m.user_id === userId)?.presence ?? null;
   const acknowledged =
     JSON.stringify(serverPresence) === JSON.stringify(presence);
+  // The server recreates IDs after a reconnect. Compare the actual overlap so
+  // restoring the same file/participants does not reopen a dismissed panel.
+  const visibleSignature = JSON.stringify(
+    conflicts
+      .map((c) => JSON.stringify([c.path, [...c.user_ids].sort()]))
+      .sort(),
+  );
+  useEffect(() => {
+    if (!connected) {
+      drawerSynchronized.current = false;
+      return;
+    }
+    // A reconnect snapshot can be empty before our presence has been restored.
+    // Keep the previous baseline until that restoration is acknowledged.
+    if (!drawerSynchronized.current && !acknowledged) return;
+    drawerSynchronized.current = true;
+    const keys = new Set<string>(JSON.parse(visibleSignature));
+    const hasNewWarning = [...keys].some(
+      (key) => !drawerWarnings.current.has(key),
+    );
+    drawerWarnings.current = keys;
+    // Opening an alert must not take focus away from an ongoing form edit.
+    if (hasNewWarning) setOpen(true);
+  }, [visibleSignature, connected, acknowledged]);
+  function closePanel() {
+    setOpen(false);
+    trigger.current?.focus();
+  }
+  useEffect(() => {
+    if (!open) return;
+    function onEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      // Let a foreground modal handle Escape without dismissing this panel.
+      if (
+        document.querySelector(
+          'dialog[open], [role="dialog"][aria-modal="true"]',
+        )
+      )
+        return;
+      event.preventDefault();
+      closePanel();
+    }
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [open]);
+  const signature = JSON.stringify(mine.map((c) => c.id).sort());
   const synchronized = useRef(false);
   const previous = useRef<Set<string> | null>(null);
   const pending = useRef(new Set<string>());
@@ -119,12 +174,21 @@ export function ConflictRadar({
     ).length ?? 0;
   const names = new Map(state?.members.map((m) => [m.user_id, m.display_name]));
   return (
-    <section className="conflict-radar" aria-labelledby="radar-heading">
-      <div className="radar-heading">
-        <h2 id="radar-heading">
-          <Radar size={20} /> {t("Conflict Radar")}{" "}
-          <span className="count">{conflicts.length}</span>
-        </h2>
+    <>
+      <button
+        ref={trigger}
+        className="button radar-toggle"
+        aria-label={t("Conflict Radar")}
+        aria-expanded={open}
+        aria-controls="conflict-radar-panel"
+        onClick={() => setOpen((previous) => !previous)}
+      >
+        <Radar size={16} /> {t("Conflict Radar")}
+        <span className="count" aria-hidden="true">
+          {conflicts.length}
+        </span>
+      </button>
+      {!preferences && (
         <SettingsContent section="audio">
           {isTauri() && (
             <button
@@ -138,35 +202,6 @@ export function ConflictRadar({
             </button>
           )}
         </SettingsContent>
-      </div>
-      <p className="muted">
-        {t(
-          "Changes to the same file indicate a possible risk, not a confirmed Git conflict. Only shared file names are compared.",
-        )}
-      </p>
-      <p
-        aria-live="polite"
-        aria-atomic="true"
-        className={conflicts.length ? "radar-summary" : "muted"}
-      >
-        {!connected
-          ? t(
-              "Radar is waiting for a connection. Current overlaps cannot be checked.",
-            )
-          : conflicts.length
-            ? t(
-                "Files with overlapping changes: {count}. In your work: {mine}.",
-                { count: conflicts.length, mine: mine.length },
-              )
-            : t("No overlap detected in the shared files right now.")}
-      </p>
-      {connected && (
-        <p className="muted">
-          {t(
-            "File names shared by {sharing} of {total} online members. Hidden or oversized lists cannot be compared.",
-            { sharing: sharingCount, total: state.members.length },
-          )}
-        </p>
       )}
       <SettingsContent section="audio">
         {error && (
@@ -175,27 +210,83 @@ export function ConflictRadar({
           </p>
         )}
       </SettingsContent>
-      <ul className="conflict-list">
-        {conflicts.map((c) => (
-          <li key={c.id}>
-            <code>{c.path}</code>
-            <span>
-              {c.user_ids
-                .map((id) =>
-                  id === userId
-                    ? `${names.get(id) ?? t("Member")} ${t("(you)")}`
-                    : (names.get(id) ?? t("Member")),
-                )
-                .join(", ")}
-            </span>
+      {open && (
+        <section
+          id="conflict-radar-panel"
+          className="radar-panel"
+          role="dialog"
+          aria-labelledby="radar-heading"
+        >
+          <div className="conflict-radar">
+            <div className="radar-heading">
+              <h2 id="radar-heading">
+                <Radar size={20} /> {t("Conflict Radar")}{" "}
+                <span className="count" aria-hidden="true">
+                  {conflicts.length}
+                </span>
+              </h2>
+              <button
+                className="icon-button"
+                aria-label={t("Close conflict radar")}
+                title={t("Close conflict radar")}
+                onClick={closePanel}
+              >
+                <X size={18} />
+              </button>
+            </div>
             <p className="muted">
               {t(
-                "Check with your teammates whether you are editing the same part of the file.",
+                "Changes to the same file indicate a possible risk, not a confirmed Git conflict. Only shared file names are compared.",
               )}
             </p>
-          </li>
-        ))}
-      </ul>
-    </section>
+            <p
+              aria-live="polite"
+              aria-atomic="true"
+              className={conflicts.length ? "radar-summary" : "muted"}
+            >
+              {!connected
+                ? t(
+                    "Radar is waiting for a connection. Current overlaps cannot be checked.",
+                  )
+                : conflicts.length
+                  ? t(
+                      "Files with overlapping changes: {count}. In your work: {mine}.",
+                      { count: conflicts.length, mine: mine.length },
+                    )
+                  : t("No overlap detected in the shared files right now.")}
+            </p>
+            {connected && (
+              <p className="muted">
+                {t(
+                  "File names shared by {sharing} of {total} online members. Hidden or oversized lists cannot be compared.",
+                  { sharing: sharingCount, total: state.members.length },
+                )}
+              </p>
+            )}
+            <ul className="conflict-list">
+              {conflicts.map((c) => (
+                <li key={c.id}>
+                  <code>{c.path}</code>
+                  <span>
+                    {c.user_ids
+                      .map((id) =>
+                        id === userId
+                          ? `${names.get(id) ?? t("Member")} ${t("(you)")}`
+                          : (names.get(id) ?? t("Member")),
+                      )
+                      .join(", ")}
+                  </span>
+                  <p className="muted">
+                    {t(
+                      "Check with your teammates whether you are editing the same part of the file.",
+                    )}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+    </>
   );
 }

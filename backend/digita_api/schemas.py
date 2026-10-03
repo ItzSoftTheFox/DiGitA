@@ -13,6 +13,9 @@ from pydantic import (
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
 Password = Annotated[str, StringConstraints(min_length=12, max_length=128)]
+Avatar = Literal["initials", "fox", "cat", "robot", "leaf"]
+AvatarColor = Literal["slate", "blue", "green", "amber", "rose"]
+CustomStatus = Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)]
 # SQLite drops timezone information; all persisted timestamps originate in UTC.
 Timestamp = Annotated[
     datetime,
@@ -40,6 +43,13 @@ class Register(Login):
     display_name: Name
 
 
+class ProfileUpdate(Input):
+    display_name: Name
+    avatar: Avatar = "initials"
+    avatar_color: AvatarColor = "slate"
+    custom_status: CustomStatus = ""
+
+
 class Output(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -48,6 +58,9 @@ class UserOut(Output):
     id: str
     email: str
     display_name: str
+    avatar: Avatar
+    avatar_color: AvatarColor
+    custom_status: str
     created_at: Timestamp
 
 
@@ -74,6 +87,9 @@ class RoomOut(TeamOut):
 class MemberOut(BaseModel):
     user_id: str
     display_name: str
+    avatar: Avatar
+    avatar_color: AvatarColor
+    custom_status: str
     role: Literal["owner", "admin", "member"]
 
 
@@ -81,10 +97,13 @@ class RoleUpdate(Input):
     role: Literal["admin", "member"]
 
 
-class InviteOut(BaseModel):
+class InvitationOut(Output):
     id: str
-    code: str
     expires_at: Timestamp
+
+
+class InviteOut(InvitationOut):
+    code: str
 
 
 class AcceptInvite(Input):

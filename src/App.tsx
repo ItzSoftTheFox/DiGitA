@@ -1,6 +1,18 @@
 import { SettingsButton, SettingsContent } from "./components/LanguageSettings";
 import { t, useTranslation, dateLocale } from "./i18n";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { usePreferences } from "./components/Preferences";
+import {
+  rememberProject,
+  roomProject,
+  type RoomScope,
+} from "./lib/preferences";
 import type { RepositorySnapshot } from "./lib/repository";
 import { isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -10,6 +22,7 @@ import {
   Check,
   ChevronRight,
   Circle,
+  Copy,
   Command,
   FileCode2,
   FolderGit2,
@@ -29,11 +42,12 @@ import {
   demoRepository,
   isStaged,
   isUnstaged,
+  isUntracked,
   statusLabel,
 } from "./lib/repository";
 import { useRepository } from "./hooks/useRepository";
 
-type Filter = "all" | "staged" | "unstaged";
+type Filter = "all" | "staged" | "unstaged" | "untracked" | "conflicts";
 const clock = (date: Date) =>
   date.toLocaleTimeString(dateLocale(), {
     hour: "2-digit",
@@ -63,52 +77,215 @@ export default function App({
   onSnapshot,
   embedded = false,
   navigation,
+  roomScope,
+  onProjectChange,
+  renderSidebar,
+  repositoryActions,
 }: {
   onSnapshot?: (value: RepositorySnapshot | null) => void;
   embedded?: boolean;
   navigation?: ReactNode;
+  roomScope?: RoomScope;
+  onProjectChange?: () => void;
+  renderSidebar?: (repositoryNavigation: ReactNode) => ReactNode;
+  repositoryActions?: ReactNode;
 }) {
   useTranslation();
   const desktop = isTauri();
+  const preferences = usePreferences();
+  const initialRestored = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [path, setPath] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
   const [picking, setPicking] = useState(false);
   const [pickerError, setPickerError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [copyNotice, setCopyNotice] = useState("");
   const state = useRepository(path);
+  const latestSelection = useRef({
+    path,
+    roomScope,
+    preferences,
+    onProjectChange,
+    onSnapshot,
+    refresh: state.refresh,
+  });
+  latestSelection.current = {
+    path,
+    roomScope,
+    preferences,
+    onProjectChange,
+    onSnapshot,
+    refresh: state.refresh,
+  };
+  const switchProject = useCallback((next: string | null) => {
+    const current = latestSelection.current;
+    if (next === current.path) {
+      current.refresh();
+      return;
+    }
+    current.onProjectChange?.();
+    current.onSnapshot?.(null);
+    setDemo(false);
+    setPickerError(null);
+    setQuery("");
+    setFilter("all");
+    setCopyNotice("");
+    setPath(next);
+    if (current.preferences && !current.roomScope) {
+      current.preferences.update((p) => ({ ...p, activeProjectPath: next }));
+    }
+  }, []);
   useEffect(() => {
-    onSnapshot?.(demo || state.error ? null : state.snapshot);
-  }, [demo, state.snapshot, state.error, onSnapshot]);
+    if (!desktop || !preferences?.ready || initialRestored.current) return;
+    initialRestored.current = true;
+    const restored = roomScope
+      ? roomProject(preferences.preferences, roomScope)
+      : preferences.preferences.activeProjectPath;
+    // Restoration chooses a folder without changing or persisting consent.
+    setPath(restored);
+  }, [desktop, preferences?.ready, preferences?.preferences, roomScope]);
+  useEffect(
+    () =>
+      preferences?.register({ path, scope: roomScope, select: switchProject }),
+    [
+      preferences?.register,
+      path,
+      roomScope?.server,
+      roomScope?.accountId,
+      roomScope?.roomId,
+      switchProject,
+    ],
+  );
+  useEffect(() => {
+    if (!path || !state.snapshot || !preferences) return;
+    const existing = preferences.preferences.recentProjects.find(
+      (p) => p.path === path,
+    );
+    if (existing?.name === state.snapshot.name) return;
+    // Snapshot names are local user data and never enter the room payload.
+    preferences.update((p) =>
+      rememberProject(p, { path, name: state.snapshot!.name }, !roomScope),
+    );
+  }, [
+    path,
+    state.snapshot,
+    preferences?.update,
+    preferences?.preferences,
+    roomScope,
+  ]);
+
+  useEffect(() => {
+    onSnapshot?.(demo || state.error || state.stale ? null : state.snapshot);
+  }, [
+    demo,
+    state.snapshot,
+    state.error,
+    state.stale,
+    state.updatedAt,
+    onSnapshot,
+  ]);
   const repo = demo ? demoRepository : state.snapshot;
   const error = pickerError || state.error;
+  const stale =
+    !demo &&
+    (state.stale || Boolean(state.error) || repo?.statusComplete === false);
   const staged = repo?.files.filter(isStaged).length ?? 0;
   const unstaged = repo?.files.filter(isUnstaged).length ?? 0;
+  const untracked = repo?.files.filter(isUntracked).length ?? 0;
+  const conflicts = repo?.files.filter((file) => file.conflicted).length ?? 0;
   const files =
     repo?.files.filter(
       (file) =>
         (filter === "all" ||
-          (filter === "staged" ? isStaged(file) : isUnstaged(file))) &&
+          (filter === "staged"
+            ? isStaged(file)
+            : filter === "unstaged"
+              ? isUnstaged(file)
+              : filter === "untracked"
+                ? isUntracked(file)
+                : file.conflicted)) &&
         `${file.path} ${file.originalPath ?? ""}`
           .toLocaleLowerCase()
           .includes(query.toLocaleLowerCase()),
     ) ?? [];
+  const pageSize = 100;
+  const currentPage = Math.min(
+    page,
+    Math.max(0, Math.ceil(files.length / pageSize) - 1),
+  );
+  const visibleFiles = files.slice(
+    currentPage * pageSize,
+    (currentPage + 1) * pageSize,
+  );
+  useEffect(() => setPage(0), [filter, query, repo?.root]);
+  async function copy(value: string) {
+    const selectedPath = path;
+    try {
+      await navigator.clipboard.writeText(value);
+      if (mounted.current && latestSelection.current.path === selectedPath)
+        setCopyNotice("Copied to clipboard.");
+    } catch {
+      if (mounted.current && latestSelection.current.path === selectedPath)
+        setCopyNotice("Could not copy. Select and copy the text manually.");
+    }
+  }
 
   async function selectRepository() {
     setPickerError(null);
     setPicking(true);
+    const epoch = preferences?.revision;
     try {
       const selected = await open({
         directory: true,
         multiple: false,
         title: t("Choose a Git repository"),
       });
+      if (
+        !mounted.current ||
+        latestSelection.current.preferences?.revision !== epoch
+      )
+        return;
       if (typeof selected === "string") {
-        setDemo(false);
-        setQuery("");
-        setFilter("all");
-        if (selected === path) state.refresh();
-        else setPath(selected);
+        if (roomScope && selected === path) {
+          // Choosing the connected folder again still asks for fresh association.
+          latestSelection.current.onProjectChange?.();
+          latestSelection.current.onSnapshot?.(null);
+        }
+        preferences?.update((p) => {
+          const next = rememberProject(
+            p,
+            {
+              path: selected,
+              name: selected.split(/[\\/]/).filter(Boolean).pop() || selected,
+            },
+            !roomScope,
+          );
+          // Reassigning a previously remembered room folder repairs its binding.
+          if (roomScope && path && roomProject(p, roomScope) === path) {
+            next.roomProjects = [
+              { ...roomScope, path: selected },
+              ...next.roomProjects.filter(
+                (binding) =>
+                  !(
+                    binding.server === roomScope.server &&
+                    binding.accountId === roomScope.accountId &&
+                    binding.roomId === roomScope.roomId
+                  ),
+              ),
+            ].slice(0, 100);
+          }
+          return next;
+        });
+        switchProject(selected);
       }
     } catch (cause) {
       setPickerError(String(cause));
@@ -117,16 +294,17 @@ export default function App({
     }
   }
   function disconnect() {
-    setPath(null);
+    switchProject(null);
     setDemo(false);
     setPickerError(null);
     setQuery("");
     setFilter("all");
+    setCopyNotice("");
   }
   const chooseButton = (
     <button
       className="button primary"
-      disabled={picking}
+      disabled={picking || (preferences !== null && !preferences.ready)}
       onClick={() => void selectRepository()}
     >
       {picking ? (
@@ -138,80 +316,117 @@ export default function App({
     </button>
   );
 
-  return (
-    <div className={embedded ? "app-shell embedded-workspace" : "app-shell"}>
-      <SettingsContent section="projects">
-        <p>{repo ? repo.name : t("No repository connected")}</p>
-      </SettingsContent>
-      <aside className="sidebar">
-        <a
-          className="brand"
-          href="#workspace"
-          aria-label={t("DiGitA — go to workspace")}
-        >
-          <Mark />
-          <span>
-            DiGitA<span className="brand-period">01</span>
-          </span>
-        </a>
-        <div className="sidebar-section-label">
-          {t("WORKSPACE")} <span>01</span>
-        </div>
-        <a className="nav-active" href="#workspace" aria-label={t("Overview")}>
-          <LayoutGrid size={16} />
-          <span>{t("Overview")}</span>
-          <ArrowUpRight size={15} />
-        </a>
-        <div className="sidebar-repository">
-          <div className="sidebar-section-label">{t("REPOSITORY")}</div>
-          {repo ? (
-            <div className="repo-nav">
-              <FolderGit2 size={16} />
-              <span title={repo.root}>{repo.name}</span>
-              <span className="square-dot" />
-            </div>
-          ) : (
-            <div className="repo-placeholder">
-              <span className="dashed-square" /> {t("Not connected yet")}
-            </div>
-          )}
-          {desktop && (
-            <button
-              className="sidebar-add"
-              onClick={() => void selectRepository()}
-              disabled={picking}
-            >
-              <Plus size={14} /> {t("Choose folder")}
-            </button>
-          )}
-        </div>
-        <div className="sidebar-bottom">
-          {!embedded && <SettingsButton />}
-          <div className="privacy-card">
-            <ShieldCheck size={19} />
-            <p>
-              {t("Your code. Your space.")}
-              <span>
-                {t("Repository contents stay")}
-                <br />
-                {t("on this device.")}
-              </span>
-            </p>
-          </div>
-          <div className="local-profile">
-            <div className="profile-icon">
-              <Command size={16} />
-            </div>
-            <div>
-              {t("Local workspace")}
-              <span>{t("Personal space")}</span>
-            </div>
+  const repositoryNavigation = (
+    <>
+      <div className="sidebar-section-label">
+        {t("WORKSPACE")} <span>01</span>
+      </div>
+      <a className="nav-active" href="#workspace" aria-label={t("Overview")}>
+        <LayoutGrid size={16} />
+        <span>{t("Overview")}</span>
+        <ArrowUpRight size={15} />
+      </a>
+      <div className="sidebar-repository">
+        <div className="sidebar-section-label">{t("REPOSITORY")}</div>
+        {repo ? (
+          <div className="repo-nav">
+            <FolderGit2 size={16} />
+            <span title={repo.root}>{repo.name}</span>
             <span className="square-dot" />
           </div>
-        </div>
-      </aside>
+        ) : (
+          <div className="repo-placeholder">
+            <span className="dashed-square" /> {t("Not connected yet")}
+          </div>
+        )}
+        {desktop && (
+          <button
+            className="sidebar-add"
+            onClick={() => void selectRepository()}
+            disabled={picking || (preferences !== null && !preferences.ready)}
+          >
+            <Plus size={14} /> {t("Choose folder")}
+          </button>
+        )}
+      </div>
+      {desktop &&
+        preferences &&
+        preferences.preferences.recentProjects.length > 0 && (
+          <div className="sidebar-repository sidebar-recent">
+            <div className="sidebar-section-label">{t("RECENT PROJECTS")}</div>
+            {preferences.preferences.recentProjects.map((project) => (
+              <button
+                className="sidebar-add"
+                key={project.path}
+                title={project.path}
+                aria-current={path === project.path ? "true" : undefined}
+                onClick={() => switchProject(project.path)}
+              >
+                {project.name}
+              </button>
+            ))}
+          </div>
+        )}
+    </>
+  );
 
-      <div className="main-shell">
+  return (
+    <div
+      className={
+        renderSidebar
+          ? "app-shell signed-layout unified-local-workspace"
+          : embedded
+            ? "app-shell embedded-workspace"
+            : "app-shell"
+      }
+    >
+      {!preferences && (
+        <SettingsContent section="projects">
+          <p>{repo ? repo.name : t("No repository connected")}</p>
+        </SettingsContent>
+      )}
+      {renderSidebar ? (
+        renderSidebar(repositoryNavigation)
+      ) : (
+        <aside className="sidebar">
+          <a
+            className="brand"
+            href="#workspace"
+            aria-label={t("DiGitA — go to workspace")}
+          >
+            <Mark />
+            <span>
+              DiGitA<span className="brand-period">01</span>
+            </span>
+          </a>
+          {repositoryNavigation}
+          <div className="sidebar-bottom">
+            <div className="privacy-card">
+              <ShieldCheck size={19} />
+              <p>
+                {t("Your code. Your space.")}
+                <span>
+                  {t("Repository contents stay")}
+                  <br />
+                  {t("on this device.")}
+                </span>
+              </p>
+            </div>
+            <div className="local-profile">
+              <div className="profile-icon">
+                <Command size={16} />
+              </div>
+              <div>
+                {t("Local workspace")}
+                <span>{t("Personal space")}</span>
+              </div>
+              {!embedded && <SettingsButton />}
+            </div>
+          </div>
+        </aside>
+      )}
+
+      <div className={renderSidebar ? "main-shell signed-main" : "main-shell"}>
         <header className="topbar">
           {navigation}
           <div className="breadcrumb" hidden={!!navigation}>
@@ -258,6 +473,24 @@ export default function App({
               <div>
                 <strong>{t("Could not load the repository.")}</strong>
                 <p>{t(error)}</p>
+                {path && desktop && (
+                  <>
+                    <p>
+                      {t(
+                        "If this folder moved or is missing, choose its new location.",
+                      )}
+                    </p>
+                    <button
+                      className="button"
+                      disabled={
+                        picking || (preferences !== null && !preferences.ready)
+                      }
+                      onClick={() => void selectRepository()}
+                    >
+                      {t("Reassign folder")}
+                    </button>
+                  </>
+                )}
                 {state.snapshot && (
                   <span>{t("Showing the last known state.")}</span>
                 )}
@@ -272,10 +505,24 @@ export default function App({
               </button>
             </div>
           )}
+          {stale && repo && (
+            <p className="error-banner" role="status">
+              {t(
+                "Git status is out of date. The last known state is shown; sharing is off until you refresh and confirm again.",
+              )}
+            </p>
+          )}
+          {copyNotice && <p role="status">{t(copyNotice)}</p>}
 
           {repo ? (
             <div className="repository-content enter" key={repo.root}>
-              <section className="repository-header">
+              <section
+                className={
+                  repositoryActions
+                    ? "repository-header with-room-sharing"
+                    : "repository-header"
+                }
+              >
                 <div className="repo-symbol">
                   <FolderGit2 size={25} strokeWidth={1.3} />
                 </div>
@@ -287,17 +534,46 @@ export default function App({
                   </span>
                 </div>
                 <div className="repo-actions">
+                  {desktop && preferences && (
+                    <select
+                      className="project-switcher"
+                      aria-label={t("Active project")}
+                      value={path ?? ""}
+                      onChange={(event) => switchProject(event.target.value)}
+                    >
+                      {preferences.preferences.recentProjects.map((project) => (
+                        <option key={project.path} value={project.path}>
+                          {project.name}
+                        </option>
+                      ))}
+                      {path &&
+                        !preferences.preferences.recentProjects.some(
+                          (project) => project.path === path,
+                        ) && <option value={path}>{repo.name}</option>}
+                    </select>
+                  )}
+                  {desktop && (
+                    <button
+                      className="button"
+                      disabled={
+                        picking || (preferences !== null && !preferences.ready)
+                      }
+                      onClick={() => void selectRepository()}
+                    >
+                      {t("Choose folder")}
+                    </button>
+                  )}
                   <span className="connection">
                     <span
                       className={
-                        demo || error
+                        demo || stale
                           ? "square-dot muted-dot"
                           : "square-dot live-dot"
                       }
                     />
                     {demo
                       ? t("Demo")
-                      : error
+                      : stale
                         ? t("Out of date")
                         : t("Connected")}
                   </span>
@@ -319,6 +595,7 @@ export default function App({
                     <Unplug size={16} />
                   </button>
                 </div>
+                {repositoryActions}
               </section>
 
               <div className="metrics">
@@ -328,7 +605,7 @@ export default function App({
                     <GitBranch size={16} />
                   </div>
                   <div className="branch-value" title={repo.branch}>
-                    {repo.branch}
+                    {repo.detached ? t("Detached HEAD") : repo.branch}
                   </div>
                   <div className="metric-foot">
                     {repo.detached
@@ -366,6 +643,49 @@ export default function App({
                 </section>
               </div>
 
+              <section
+                className="git-tracking"
+                aria-label={t("Local Git tracking")}
+              >
+                {repo.upstream ? (
+                  <p>
+                    <strong>{repo.upstream}</strong> ·{" "}
+                    {repo.ahead == null || repo.behind == null
+                      ? t("Tracking counts unavailable")
+                      : t("{ahead} ahead · {behind} behind", {
+                          ahead: repo.ahead,
+                          behind: repo.behind,
+                        })}
+                  </p>
+                ) : (
+                  <p>
+                    {t(
+                      repo.upstream === undefined
+                        ? "Tracking information unavailable."
+                        : repo.detached
+                          ? "Detached HEAD has no tracked branch."
+                          : "No upstream configured.",
+                    )}
+                  </p>
+                )}
+                <p className="muted">
+                  {t(
+                    "Tracking uses local upstream data and may be out of date. DiGitA never fetches.",
+                  )}
+                </p>
+                {repo.operation && (
+                  <p role="status" className="operation-status">
+                    {t(
+                      {
+                        merge: "Merge in progress",
+                        rebase: "Rebase in progress",
+                        "cherry-pick": "Cherry-pick in progress",
+                      }[repo.operation],
+                    )}
+                  </p>
+                )}
+              </section>
+
               <section className="changes-panel">
                 <div className="section-heading">
                   <h3>
@@ -381,6 +701,8 @@ export default function App({
                         ["all", t("All"), repo.files.length],
                         ["staged", t("Staged"), staged],
                         ["unstaged", t("Unstaged"), unstaged],
+                        ["untracked", t("Untracked"), untracked],
+                        ["conflicts", t("Conflicts"), conflicts],
                       ] as const
                     ).map(([value, label, count]) => (
                       <button
@@ -422,15 +744,38 @@ export default function App({
                       </tr>
                     </thead>
                     <tbody>
-                      {files.map((file) => (
+                      {visibleFiles.map((file) => (
                         <tr key={file.path}>
                           <td>
                             <div className="file-name">
                               <FileCode2 size={16} />
                               <div>
                                 <span className="mono">{file.path}</span>
+                                <button
+                                  className="icon-button copy-path"
+                                  aria-label={t("Copy relative path {path}", {
+                                    path: file.path,
+                                  })}
+                                  onClick={() => void copy(file.path)}
+                                >
+                                  <Copy size={14} />
+                                </button>
                                 {file.originalPath && (
                                   <small>← {file.originalPath}</small>
+                                )}
+                                {file.originalPath && (
+                                  <button
+                                    className="icon-button copy-path"
+                                    aria-label={t(
+                                      "Copy original relative path {path}",
+                                      { path: file.originalPath },
+                                    )}
+                                    onClick={() =>
+                                      void copy(file.originalPath!)
+                                    }
+                                  >
+                                    <Copy size={14} />
+                                  </button>
                                 )}
                                 {file.conflicted && (
                                   <small>
@@ -475,16 +820,20 @@ export default function App({
                       <Check size={24} />
                     )}
                     <strong>
-                      {repo.files.length
-                        ? t("No matching files")
-                        : t("Clean working tree")}
+                      {stale
+                        ? t("Current Git status unavailable")
+                        : repo.files.length
+                          ? t("No matching files")
+                          : t("Clean working tree")}
                     </strong>
                     <span>
-                      {repo.files.length
-                        ? t("Try another filter or search term.")
-                        : t(
-                            "Everything is saved in Git. Room for your next idea.",
-                          )}
+                      {stale
+                        ? t("Refresh to check the current working tree.")
+                        : repo.files.length
+                          ? t("Try another filter or search term.")
+                          : t(
+                              "Everything is saved in Git. Room for your next idea.",
+                            )}
                     </span>
                   </div>
                 )}
@@ -497,6 +846,34 @@ export default function App({
                     {files.length} / {repo.files.length} {t("files")}
                   </span>
                 </div>
+                {files.length > pageSize && (
+                  <div className="file-pagination">
+                    <button
+                      className="button"
+                      disabled={currentPage === 0}
+                      onClick={() => setPage(currentPage - 1)}
+                    >
+                      {t("Previous files")}
+                    </button>
+                    <span role="status">
+                      {t("Showing {start}–{end} of {count} matching files", {
+                        start: currentPage * pageSize + 1,
+                        end: Math.min(
+                          (currentPage + 1) * pageSize,
+                          files.length,
+                        ),
+                        count: files.length,
+                      })}
+                    </span>
+                    <button
+                      className="button"
+                      disabled={(currentPage + 1) * pageSize >= files.length}
+                      onClick={() => setPage(currentPage + 1)}
+                    >
+                      {t("Next files")}
+                    </button>
+                  </div>
+                )}
               </section>
 
               <section className="commit-panel">
@@ -525,6 +902,19 @@ export default function App({
                     <code title={repo.commit.hash}>
                       {repo.commit.hash.slice(0, 7)}
                     </code>
+                    <button
+                      className="icon-button"
+                      aria-label={t("Copy full commit hash")}
+                      onClick={() => void copy(repo.commit!.hash)}
+                    >
+                      <Copy size={16} />
+                    </button>
+                    {copyNotice ===
+                      "Could not copy. Select and copy the text manually." && (
+                      <code className="full-commit-hash">
+                        {repo.commit.hash}
+                      </code>
+                    )}
                   </>
                 ) : (
                   <div className="commit-details">
@@ -581,6 +971,7 @@ export default function App({
                     {t("Cancel connection")}
                   </button>
                 )}
+                {repositoryActions}
               </div>
               <div className="empty-bottom">
                 <span>

@@ -17,6 +17,7 @@ from digita_api.request_limits import RequestBodyLimit
     ("method", "path", "body"),
     [
         ("GET", "/auth/me", None),
+        ("PATCH", "/auth/me", {"display_name": "Updated"}),
         ("POST", "/auth/logout", None),
         ("GET", "/teams", None),
         ("POST", "/teams", {"name": "x"}),
@@ -27,6 +28,7 @@ from digita_api.request_limits import RequestBodyLimit
         ("POST", "/teams/unknown/rooms", {"name": "x"}),
         ("GET", "/rooms/unknown", None),
         ("POST", "/teams/unknown/invitations", None),
+        ("GET", "/teams/unknown/invitations", None),
         ("DELETE", "/teams/unknown/invitations/unknown", None),
         ("POST", "/invitations/accept", {"code": "a" * 43}),
     ],

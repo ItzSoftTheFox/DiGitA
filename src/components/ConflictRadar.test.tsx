@@ -54,6 +54,112 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
+it("opens manually without warnings and returns focus on Close or Escape", () => {
+  const view = render(
+    <ConflictRadar state={state()} userId="me" presence={presence} />,
+  );
+  const trigger = screen.getByRole("button", { name: "Conflict Radar" });
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Close conflict radar" }),
+  ).toBeNull();
+  fireEvent.click(trigger);
+  expect(
+    screen
+      .getByRole("dialog", { name: "Conflict Radar" })
+      .getAttribute("aria-modal"),
+  ).toBeNull();
+  expect(
+    screen.getByText("No overlap detected in the shared files right now."),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Close conflict radar" }));
+  expect(document.activeElement).toBe(trigger);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  view.rerender(<ConflictRadar state={null} userId="me" presence={presence} />);
+  fireEvent.click(trigger);
+  expect(screen.getByText(/Radar is waiting for a connection/)).toBeTruthy();
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+});
+
+it("keeps a dismissed warning closed through updates and regenerated reconnect IDs, then opens for changed participants", () => {
+  const view = render(
+    <ConflictRadar state={state([warning])} userId="me" presence={presence} />,
+  );
+  expect(screen.getByRole("dialog", { name: "Conflict Radar" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Close conflict radar" }));
+  const updated = state([warning]);
+  updated.members[1].display_name = "Updated name";
+  view.rerender(
+    <ConflictRadar state={updated} userId="me" presence={presence} />,
+  );
+  expect(screen.queryByRole("dialog")).toBeNull();
+  view.rerender(<ConflictRadar state={null} userId="me" presence={presence} />);
+  const restoring = state();
+  restoring.members[0].presence = null;
+  view.rerender(
+    <ConflictRadar state={restoring} userId="me" presence={presence} />,
+  );
+  view.rerender(
+    <ConflictRadar
+      state={state([{ ...warning, id: "recreated" }])}
+      userId="me"
+      presence={presence}
+    />,
+  );
+  expect(screen.queryByRole("dialog")).toBeNull();
+  view.rerender(
+    <ConflictRadar
+      state={state([
+        warning,
+        { ...warning, id: "new-warning", user_ids: ["me", "other", "third"] },
+      ])}
+      userId="me"
+      presence={presence}
+    />,
+  );
+  expect(screen.getByRole("dialog", { name: "Conflict Radar" })).toBeTruthy();
+  expect(
+    screen.getByRole("button", { name: "Conflict Radar" }).textContent,
+  ).toContain("2");
+});
+
+it("opens again when a warning genuinely clears and recurs while connected", () => {
+  const view = render(
+    <ConflictRadar state={state([warning])} userId="me" presence={presence} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Close conflict radar" }));
+  view.rerender(
+    <ConflictRadar state={state()} userId="me" presence={presence} />,
+  );
+  expect(screen.queryByRole("dialog")).toBeNull();
+  view.rerender(
+    <ConflictRadar
+      state={state([{ ...warning, id: "new-occurrence" }])}
+      userId="me"
+      presence={presence}
+    />,
+  );
+  expect(screen.getByRole("dialog", { name: "Conflict Radar" })).toBeTruthy();
+});
+
+it("does not take focus from a form when automatically opening a visible new warning", () => {
+  const room = (data: RoomState) => (
+    <>
+      <input aria-label="Draft" />
+      <ConflictRadar state={data} userId="me" presence={presence} />
+    </>
+  );
+  const view = render(room(state()));
+  const input = screen.getByRole("textbox", { name: "Draft" });
+  input.focus();
+  view.rerender(room(state([warning])));
+  expect(screen.getByRole("dialog", { name: "Conflict Radar" })).toBeTruthy();
+  expect(document.activeElement).toBe(input);
+});
+
 it("clears withdrawn local paths and offline state immediately", () => {
   const view = render(
     <ConflictRadar state={state([warning])} userId="me" presence={presence} />,

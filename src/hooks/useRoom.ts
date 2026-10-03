@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { API_URL } from "../lib/api";
+import { API_URL, type Member, type Profile } from "../lib/api";
 import type { RepositorySnapshot } from "../lib/repository";
 
 export type Sharing = {
@@ -29,11 +29,12 @@ export type RoomState = {
   room_id: string;
   ambient: AmbientState;
   conflicts: { id: string; path: string; user_ids: string[] }[];
-  members: {
+  members: ({
     user_id: string;
     display_name: string;
     presence: Presence | null;
-  }[];
+    role?: Member["role"];
+  } & Partial<Profile>)[];
   events: {
     id: string;
     type: string;
@@ -48,7 +49,7 @@ export function sharedPresence(
   enabled: boolean,
   sharing: Sharing,
 ): Presence | null {
-  if (!enabled || !snapshot) return null;
+  if (!enabled || !snapshot || snapshot.statusComplete === false) return null;
   const paths = [
     ...new Set(
       snapshot.files.flatMap((f) =>

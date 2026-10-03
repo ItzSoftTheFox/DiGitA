@@ -4,6 +4,7 @@ Start with the [project README](../README.md) for setup and the repository layou
 
 ## Development
 
+- [Codex Coordinator, Frontend and Backend workflow](coordination.md)
 - [Code map and data flow](codebase.md)
 - [Detailed setup, product behavior and troubleshooting](development.md)
 - [Backend API, permissions, configuration and migrations](../backend/README.md)
@@ -22,9 +23,9 @@ These are dated records. Successful checks in an older record do not validate
 later source changes.
 
 - [0.2.0 phase 1: pilot baseline and native checklist](history/validation-0.2.0-phase-1.md)
-- [0.2.0 phase 2: first launch and error recovery](history/validation-0.2.0-phase-2.md)
-- [0.2.0 phase 3: navigation and Settings design](history/design-0.2.0-phase-3.md)
-- [0.2.0 phase 3: delivered behavior and validation](history/validation-0.2.0-phase-3.md)
+- [Earlier milestones: first launch, Settings and remembered projects](history/milestones-0.2.0.md)
+- [0.2.0 phase 5: team administration and account personalization](history/validation-0.2.0-phase-5.md)
+- [0.2.0 phase 6 and follow-up: local Git, sidebar and owner team deletion](history/validation-0.2.0-phase-6.md)
 
 ## Website files
 

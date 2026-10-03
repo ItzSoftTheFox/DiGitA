@@ -5,12 +5,15 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type ReactNode,
 } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import {
   ArrowLeft,
   ArrowUpRight,
   FolderGit2,
+  Hash,
+  LayoutGrid,
   LogOut,
   Plus,
   RefreshCw,
@@ -18,6 +21,8 @@ import {
   X,
 } from "lucide-react";
 import App from "./App";
+import { PreferencesProvider } from "./components/Preferences";
+import { canonicalServer } from "./lib/preferences";
 import { QuickStart, needsIntroduction } from "./components/QuickStart";
 import {
   NetworkNotice,
@@ -34,11 +39,18 @@ import {
   LanguageSettings,
   SettingsButton,
   SettingsContent,
+  useSettingsNavigation,
 } from "./components/LanguageSettings";
-import { AmbientPlayer } from "./components/AmbientPlayer";
+import { ProfileEditor, ProfileAvatar } from "./components/ProfileEditor";
+import {
+  SharingChoices,
+  SharingConfirmation,
+} from "./components/SharingConfirmation";
+import { TeamAdministration } from "./components/TeamAdministration";
 import { ConflictRadar } from "./components/ConflictRadar";
 import {
   api,
+  API_URL,
   ApiError,
   credentials,
   type Member,
@@ -58,15 +70,18 @@ export default function DesktopApp() {
   const [intro, setIntro] = useState(needsIntroduction);
   return (
     <LanguageSettings onShowGuide={() => setIntro(true)}>
-      <NetworkNotice />
-      <DesktopContent />
-      <QuickStart open={intro} onClose={() => setIntro(false)} />
+      <PreferencesProvider>
+        <NetworkNotice />
+        <DesktopContent />
+        <QuickStart open={intro} onClose={() => setIntro(false)} />
+      </PreferencesProvider>
     </LanguageSettings>
   );
 }
 
 function DesktopContent() {
   useTranslation();
+  const navigate = useSettingsNavigation();
   const [session, setSession] = useState<Session | null>(null);
   const [restoring, setRestoring] = useState(true);
   const [restoreAttempt, setRestoreAttempt] = useState(0);
@@ -77,6 +92,11 @@ function DesktopContent() {
   const [dashboardRevision, setDashboardRevision] = useState(0);
   const [local, setLocal] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
+  const [teams, setTeams] = useState<TeamView[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [teamsError, setTeamsError] = useState("");
+  const [teamsFailure, setTeamsFailure] = useState<unknown>(null);
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     let active = true;
@@ -121,6 +141,102 @@ function DesktopContent() {
     setError("Your session has expired. Sign in again.");
     void credentials.clear().catch(() => {});
   }, []);
+  useEffect(() => {
+    let active = true;
+    if (!session) {
+      setTeams([]);
+      setSelectedTeam(null);
+      return;
+    }
+    setTeamsLoading(true);
+    setTeamsError("");
+    setTeamsFailure(null);
+    void api<Team[]>("/teams", session.token)
+      .then((list) =>
+        Promise.all(
+          list.map(async (team) => {
+            const [rooms, members] = await Promise.all([
+              api<Room[]>(`/teams/${team.id}/rooms`, session.token),
+              api<Member[]>(`/teams/${team.id}/members`, session.token),
+            ]);
+            return {
+              ...team,
+              rooms,
+              role:
+                members.find((m) => m.user_id === session.user.id)?.role ??
+                ("member" as const),
+            };
+          }),
+        ),
+      )
+      .then((list) => {
+        if (!active) return;
+        setTeams(list);
+        setSelectedTeam((previous) =>
+          list.some((team) => team.id === previous)
+            ? previous
+            : (list[0]?.id ?? null),
+        );
+        setRoom((previous) =>
+          previous &&
+          !list.some((team) =>
+            team.rooms.some((entry) => entry.id === previous.id),
+          )
+            ? null
+            : previous,
+        );
+      })
+      .catch((cause) => {
+        if (!active) return;
+        setTeams([]);
+        setTeamsError(message(cause));
+        setTeamsFailure(cause);
+        if (cause instanceof ApiError && cause.status === 401) expireSession();
+      })
+      .finally(() => {
+        if (active) setTeamsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [session?.token, session?.user.id, dashboardRevision, expireSession]);
+  function selectTeam(id: string) {
+    if (id === selectedTeam && !local && !room) return;
+    navigate(() => {
+      if (!canNavigate.current()) return;
+      setRoom(null);
+      setLocal(false);
+      setSelectedTeam(id);
+    });
+  }
+  function openLocal() {
+    navigate(() => {
+      if (canNavigate.current()) setLocal(true);
+    });
+  }
+  function openRoom(value: Room) {
+    navigate(() => {
+      if (!canNavigate.current()) return;
+      setSelectedTeam(value.team_id);
+      setRoom(value);
+      setLocal(false);
+    });
+  }
+  const sidebar = (repositoryNavigation?: ReactNode) =>
+    session ? (
+      <TeamSidebar
+        teams={teams}
+        selectedTeam={selectedTeam}
+        user={session.user}
+        onSelect={selectTeam}
+        loading={teamsLoading}
+        local={local}
+        room={room}
+        onLocal={openLocal}
+        onRoom={openRoom}
+        repositoryNavigation={repositoryNavigation}
+      />
+    ) : null;
   async function logout() {
     if (!canNavigate.current()) return;
     const previous = session;
@@ -143,26 +259,35 @@ function DesktopContent() {
   const account = (
     <SettingsContent section="account">
       {session ? (
-        <article className="profile-preview">
-          <span className="profile-avatar" aria-hidden="true">
-            {session.user.display_name.slice(0, 2).toUpperCase()}
-          </span>
-          <h3>{session.user.display_name}</h3>
-          <p>{session.user.email}</p>
-          <p>{t("Your email is private. Teammates see your display name.")}</p>
-        </article>
+        <ProfileEditor
+          key={`${session.user.id}:${session.token}`}
+          user={session.user}
+          token={session.token}
+          onSaved={(user) => {
+            setSession((previous) =>
+              previous?.token === session.token
+                ? { ...previous, user }
+                : previous,
+            );
+            setDashboardRevision((revision) => revision + 1);
+          }}
+          onExpired={expireSession}
+        />
       ) : null}
     </SettingsContent>
   );
   if (local)
     return (
       <App
+        renderSidebar={session ? sidebar : undefined}
         navigation={
           <>
-            {" "}
             {account}
             <nav className="local-nav" aria-label={t("Online mode")}>
-              <button className="button" onClick={() => setLocal(false)}>
+              <button
+                className="button"
+                onClick={() => navigate(() => setLocal(false))}
+              >
                 <ArrowLeft size={16} />
                 {session ? t("Back to team space") : t("Sign in online")}
               </button>
@@ -192,29 +317,26 @@ function DesktopContent() {
       </div>
     );
   return (
-    <div className="desktop-with-menu">
-      <nav className="desktop-menu" aria-label={t("Application menu")}>
-        <SettingsButton />
-      </nav>
+    <div className="signed-layout">
+      {sidebar()}
       {account}
-      <div className="collaboration-shell">
+      <div className="collaboration-shell signed-main">
         <header className="collab-topbar">
-          <button className="wordmark" onClick={() => setRoom(null)}>
+          <button
+            className="wordmark"
+            onClick={() =>
+              navigate(() => {
+                if (canNavigate.current()) setRoom(null);
+              })
+            }
+          >
             DiGitA<span>05</span>
           </button>
           <span className="signed-user">{session.user.display_name}</span>
           <button
-            className="button"
-            onClick={() => {
-              if (canNavigate.current()) setLocal(true);
-            }}
-          >
-            {t("Local mode")}
-          </button>
-          <button
             className="icon-button"
             aria-label={t("Sign out")}
-            onClick={() => void logout()}
+            onClick={() => navigate(() => void logout())}
           >
             <LogOut size={18} />
           </button>
@@ -226,17 +348,32 @@ function DesktopContent() {
         )}
         {room ? (
           <RoomWorkspace
-            key={room.id}
+            key={`${canonicalServer(API_URL)}:${session.user.id}:${session.token}:${room.id}`}
             room={room}
             session={session}
-            onBack={() => setRoom(null)}
+            onBack={() => navigate(() => setRoom(null))}
             onExpired={expireSession}
+            onDenied={() => {
+              setRoom(null);
+              setDashboardRevision((n) => n + 1);
+            }}
           />
         ) : (
           <Dashboard
+            key={selectedTeam ?? "empty"}
+            teams={teams}
+            selectedTeam={selectedTeam}
+            loading={teamsLoading}
+            loadError={teamsError}
+            loadFailure={teamsFailure}
+            onDeleted={(id) => {
+              setTeams((previous) => previous.filter((team) => team.id !== id));
+              setSelectedTeam(null);
+              setRoom(null);
+            }}
             canNavigate={canNavigate}
             session={session}
-            onRoom={setRoom}
+            onRoom={(value) => navigate(() => setRoom(value))}
             onExpired={expireSession}
             revision={dashboardRevision}
             onRefresh={() => setDashboardRevision((n) => n + 1)}
@@ -250,6 +387,103 @@ function DesktopContent() {
         )}
       </div>
     </div>
+  );
+}
+
+function TeamSidebar({
+  teams,
+  selectedTeam,
+  user,
+  onSelect,
+  loading,
+  local,
+  room,
+  onLocal,
+  onRoom,
+  repositoryNavigation,
+}: {
+  teams: TeamView[];
+  selectedTeam: string | null;
+  user: User;
+  onSelect: (id: string) => void;
+  loading: boolean;
+  local: boolean;
+  room: Room | null;
+  onLocal: () => void;
+  onRoom: (room: Room) => void;
+  repositoryNavigation?: ReactNode;
+}) {
+  return (
+    <aside className="team-sidebar">
+      <div className="team-sidebar-title">DiGitA</div>
+      <div className="team-sidebar-content">
+        <button
+          className="team-nav-button local-mode-button"
+          aria-current={local ? "true" : undefined}
+          onClick={onLocal}
+        >
+          <LayoutGrid size={18} />
+          <span>{t("Local mode")}</span>
+        </button>
+        <nav aria-label={t("Joined teams")} className="joined-teams">
+          <div className="eyebrow">{t("YOUR TEAMS")}</div>
+          {teams.map((team) => (
+            <button
+              key={team.id}
+              className="team-nav-button"
+              aria-current={
+                !local && selectedTeam === team.id ? "true" : undefined
+              }
+              onClick={() => onSelect(team.id)}
+            >
+              <span className="team-avatar" aria-hidden="true">
+                {team.name.slice(0, 2).toLocaleUpperCase()}
+              </span>
+              <span>{team.name}</span>
+            </button>
+          ))}
+          {!teams.length && (
+            <p className="muted">
+              {t(loading ? "Loading teams…" : "No joined teams yet.")}
+            </p>
+          )}
+        </nav>
+        {(local || room) && selectedTeam && (
+          <nav aria-label={t("Team rooms")} className="team-rooms">
+            <div className="eyebrow">{t("ROOMS")}</div>
+            {teams
+              .find((team) => team.id === selectedTeam)
+              ?.rooms.map((entry) => (
+                <button
+                  key={entry.id}
+                  className="team-nav-button room-nav-button"
+                  aria-label={entry.name}
+                  aria-current={
+                    !local && room?.id === entry.id ? "true" : undefined
+                  }
+                  onClick={() => onRoom(entry)}
+                >
+                  <Hash size={16} />
+                  <span>{entry.name}</span>
+                </button>
+              ))}
+          </nav>
+        )}
+        {repositoryNavigation && (
+          <div className="local-repository-navigation">
+            {repositoryNavigation}
+          </div>
+        )}
+      </div>
+      <div className="signed-profile">
+        <ProfileAvatar profile={user} small />
+        <div>
+          <strong>{user.display_name}</strong>
+          {user.custom_status && <span>{user.custom_status}</span>}
+        </div>
+        <SettingsButton />
+      </div>
+    </aside>
   );
 }
 
@@ -481,6 +715,12 @@ function Login({
 }
 
 function Dashboard({
+  teams,
+  selectedTeam,
+  loading,
+  loadError,
+  loadFailure,
+  onDeleted,
   canNavigate,
   session,
   revision,
@@ -494,6 +734,12 @@ function Dashboard({
   onUncertain,
   onAcknowledge,
 }: {
+  teams: TeamView[];
+  selectedTeam: string | null;
+  loading: boolean;
+  loadError: string;
+  loadFailure: unknown;
+  onDeleted: (id: string) => void;
   canNavigate: { current: () => boolean };
   session: Session;
   revision: number;
@@ -509,7 +755,7 @@ function Dashboard({
 }) {
   useTranslation();
   const [failure, setFailure] = useState<unknown>(null);
-  const cooldown = useRetryDelay(failure);
+  const cooldown = useRetryDelay(failure ?? loadFailure);
   const [checked, setChecked] = useState(false);
   function failed(cause: unknown) {
     setFailure(cause);
@@ -520,8 +766,6 @@ function Dashboard({
       onUncertain();
     }
   }
-  const [teams, setTeams] = useState<TeamView[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [action, setAction] = useState<"team" | "room" | "join" | null>(null);
   const [adminTeam, setAdminTeam] = useState<string | null>(null);
@@ -543,52 +787,9 @@ function Dashboard({
     setDirty(false);
     setAction(next);
   }
-  const [invitation, setInvitation] = useState<{
-    code: string;
-    expires_at: string;
-  } | null>(null);
   useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError("");
-    void api<Team[]>("/teams", session.token)
-      .then((list) =>
-        Promise.all(
-          list.map(async (team) => {
-            const [rooms, members] = await Promise.all([
-              api<Room[]>(`/teams/${team.id}/rooms`, session.token),
-              api<Member[]>(`/teams/${team.id}/members`, session.token),
-            ]);
-            return {
-              ...team,
-              rooms,
-              role:
-                members.find((m) => m.user_id === session.user.id)?.role ??
-                "member",
-            };
-          }),
-        ),
-      )
-      .then((list) => {
-        if (active) {
-          setTeams(list as TeamView[]);
-          setChecked(true);
-        }
-      })
-      .catch((cause) => {
-        if (active) {
-          setTeams([]);
-          setChecked(false);
-          failed(cause);
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [session, revision]); // onExpired is intentionally not a reload trigger.
+    setChecked(!loading && !loadError);
+  }, [loading, loadError, revision]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting.current || loading || uncertain || cooldown > 0) return;
@@ -619,23 +820,8 @@ function Dashboard({
       setBusy(false);
     }
   }
-  async function invite(teamId: string) {
-    if (submitting.current || loading || uncertain || cooldown > 0) return;
-    submitting.current = true;
-    setBusy(true);
-    setError("");
-    try {
-      setInvitation(
-        await api(`/teams/${teamId}/invitations`, session.token, "POST"),
-      );
-    } catch (cause) {
-      failed(cause);
-    } finally {
-      submitting.current = false;
-      setBusy(false);
-    }
-  }
-  const managers = teams.filter((t) => t.role !== "member");
+  const selectedTeams = teams.filter((team) => team.id === selectedTeam);
+  const managers = selectedTeams.filter((team) => team.role !== "member");
   return (
     <main className="dashboard">
       <div className="dashboard-heading">
@@ -684,7 +870,7 @@ function Dashboard({
       </div>
       <RequestProgress pending={busy} label="Saving…" />
       <RetryDelay seconds={cooldown} />
-      {uncertain && (
+      {uncertain && !adminTeam && (
         <section className="action-panel" role="alert">
           <h2>{t("Check before trying again")}</h2>
           <p>
@@ -701,9 +887,9 @@ function Dashboard({
           </button>
         </section>
       )}
-      {error && (
+      {(error || loadError) && (
         <p className="form-error" role="alert">
-          {t(error)}
+          {t(error || loadError)}
         </p>
       )}
       {action && (
@@ -773,27 +959,8 @@ function Dashboard({
           </form>
         </section>
       )}
-      {invitation && (
-        <section className="action-panel">
-          <h2>{t("Your invitation is ready")}</h2>
-          <p>
-            {t("Share this single-use code with a teammate. Expires")}{" "}
-            {new Date(invitation.expires_at).toLocaleString(dateLocale())}.
-          </p>
-          <input
-            aria-label={t("Created invitation code")}
-            readOnly
-            value={invitation.code}
-            onFocus={(e) => e.target.select()}
-          />
-          <button className="text-button" onClick={() => setInvitation(null)}>
-            {t("Close invitation")}
-          </button>
-        </section>
-      )}
-      {loading ? (
-        <RequestProgress pending={loading} label="Loading rooms…" />
-      ) : !teams.length && !error ? (
+      <RequestProgress pending={loading} label="Loading rooms…" />
+      {!loading && !teams.length && !error ? (
         <section className="dashboard-empty">
           <Users size={40} strokeWidth={1} />
           <h2>{t("Your first shared space.")}</h2>
@@ -802,7 +969,7 @@ function Dashboard({
           </p>
         </section>
       ) : (
-        teams.map((team) => (
+        selectedTeams.map((team) => (
           <section className="team-section" key={team.id}>
             <div className="team-heading">
               <h2>
@@ -820,6 +987,7 @@ function Dashboard({
                 className="text-button"
                 aria-expanded={adminTeam === team.id}
                 aria-controls={`team-admin-${team.id}`}
+                disabled={busy}
                 onClick={() =>
                   setAdminTeam(adminTeam === team.id ? null : team.id)
                 }
@@ -828,33 +996,24 @@ function Dashboard({
               </button>
             </div>
             {adminTeam === team.id && (
-              <section
-                className="action-panel"
-                id={`team-admin-${team.id}`}
-                aria-label={t("Team administration")}
-              >
-                <h3>
-                  {t("Team administration")} · {team.name}
-                </h3>
-                <p>
-                  {team.role === "member"
-                    ? t(
-                        "Ask an owner or admin to create rooms and invitations.",
-                      )
-                    : t(
-                        "Create invitations for this team. Codes are single-use.",
-                      )}
-                </p>
-                {team.role !== "member" && (
-                  <button
-                    className="button"
-                    disabled={busy || uncertain || cooldown > 0}
-                    onClick={() => void invite(team.id)}
-                  >
-                    {t("Invite member")}
-                  </button>
-                )}
-              </section>
+              <TeamAdministration
+                team={team}
+                token={session.token}
+                accountId={session.user.id}
+                revision={revision}
+                busy={busy}
+                setBusy={setBusy}
+                submitting={submitting}
+                uncertain={uncertain}
+                onUncertain={() => {
+                  setChecked(false);
+                  onUncertain();
+                }}
+                onAcknowledge={onAcknowledge}
+                onRefresh={onRefresh}
+                onExpired={onExpired}
+                onDeleted={onDeleted}
+              />
             )}
             {team.rooms.length ? (
               <div className="room-grid">
@@ -862,6 +1021,7 @@ function Dashboard({
                   <button
                     className="room-card"
                     key={room.id}
+                    disabled={busy}
                     onClick={() => {
                       if (
                         !dirty ||
@@ -912,15 +1072,19 @@ function RoomWorkspace({
   session,
   onBack,
   onExpired,
+  onDenied,
 }: {
   room: Room;
   session: Session;
   onBack: () => void;
   onExpired: () => void;
+  onDenied: () => void;
 }) {
   useTranslation();
   const [snapshot, setSnapshot] = useState<RepositorySnapshot | null>(null);
   const [enabled, setEnabled] = useState(false);
+  const [sharingPrompt, setSharingPrompt] = useState(false);
+  const promptedRoot = useRef<string | null>(null);
   const [sharing, setSharing] = useState<Sharing>({
     branch: false,
     files: false,
@@ -931,18 +1095,55 @@ function RoomWorkspace({
   const [memberAttempt, setMemberAttempt] = useState(0);
   const root = useRef<string | null>(null);
   const onSnapshot = useCallback((value: RepositorySnapshot | null) => {
-    if (root.current !== (value?.root ?? null)) setEnabled(false);
-    root.current = value?.root ?? null;
-    setSnapshot(value);
+    const next = value?.statusComplete === false ? null : value;
+    if (root.current !== (next?.root ?? null)) setEnabled(false);
+    root.current = next?.root ?? null;
+    setSnapshot(next);
+    if (!next) setSharingPrompt(false);
+    else if (promptedRoot.current !== next.root) {
+      promptedRoot.current = next.root;
+      setSharingPrompt(true);
+    }
   }, []);
   const presence = sharedPresence(room.id, snapshot, enabled, sharing);
   const live = useRoom(room.id, session.token, presence);
+  const profileRevision = JSON.stringify(
+    live.state?.members.map(
+      ({
+        user_id,
+        display_name,
+        avatar,
+        avatar_color,
+        custom_status,
+        role,
+      }) => ({
+        user_id,
+        display_name,
+        avatar,
+        avatar_color,
+        custom_status,
+        role,
+      }),
+    ) ?? [],
+  );
   const slowConnection = useSlowRequest(live.status === "connecting");
   useEffect(() => {
     if (live.status === "expired") onExpired();
-  }, [live.status, onExpired]);
+    if (live.status === "denied") {
+      setEnabled(false);
+      onDenied();
+    }
+    if (live.status === "invalid") setEnabled(false);
+  }, [live.status, onExpired, onDenied]);
   useEffect(() => {
     let active = true;
+    if (live.status === "denied") {
+      setMembers([]);
+      setMemberError(
+        "Room access was denied. Return to All rooms to refresh your access.",
+      );
+      return;
+    }
     void api<Member[]>(`/teams/${room.team_id}/members`, session.token)
       .then((data) => {
         if (active) {
@@ -964,7 +1165,15 @@ function RoomWorkspace({
     return () => {
       active = false;
     };
-  }, [room.team_id, session.token, live.status, memberAttempt, onExpired]);
+  }, [
+    room.team_id,
+    session.token,
+    session.user,
+    live.status,
+    profileRevision,
+    memberAttempt,
+    onExpired,
+  ]);
   const online = new Map(live.state?.members.map((m) => [m.user_id, m]) ?? []);
   const visibleMembers = [
     ...members,
@@ -985,6 +1194,23 @@ function RoomWorkspace({
   };
   return (
     <div className="room-workspace">
+      {sharingPrompt && snapshot && (
+        <SharingConfirmation
+          repository={snapshot.name}
+          room={room.name}
+          choices={sharing}
+          onCancel={() => {
+            setSharingPrompt(false);
+            setEnabled(false);
+          }}
+          onConfirm={(choices) => {
+            if (!snapshot || snapshot.statusComplete === false) return;
+            setSharing(choices);
+            setEnabled(true);
+            setSharingPrompt(false);
+          }}
+        />
+      )}
       <div className="room-heading">
         <button className="button" onClick={onBack}>
           <ArrowLeft size={16} />
@@ -1000,85 +1226,26 @@ function RoomWorkspace({
             {t("Reconnect")}
           </button>
         )}
+        <ConflictRadar
+          state={live.state}
+          userId={session.user.id}
+          presence={presence}
+        />
       </div>
-      <section className="privacy-controls">
-        <div>
-          <h2>{t("Sharing in this room")}</h2>
-          <p>
-            {t(
-              "Connect your local copy of the shared project. Code and diffs are never sent.",
-            )}
-          </p>
-        </div>
-        <label className="check-label">
-          <input
-            type="checkbox"
-            checked={enabled}
-            disabled={!snapshot}
-            onChange={(e) => setEnabled(e.target.checked)}
-          />{" "}
-          {t("This repository belongs to this room — share Git status")}
-        </label>
-        <SettingsContent section="activity">
-          <p role="status">
-            {enabled ? t("Git sharing is on.") : t("Git sharing is off.")}
-          </p>
-          {enabled && (
-            <button className="button" onClick={() => setEnabled(false)}>
-              {t("Stop sharing")}
-            </button>
-          )}
-        </SettingsContent>
-        <SettingsContent section="privacy">
-          <div className="privacy-options">
-            {(
-              [
-                ["branch", t("Branch name")],
-                ["files", t("File names")],
-                ["commit_message", t("Commit message")],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="check-label">
-                <input
-                  type="checkbox"
-                  checked={sharing[key]}
-                  onChange={(e) =>
-                    setSharing((s) => ({ ...s, [key]: e.target.checked }))
-                  }
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-          <p>{t("Metadata changes apply immediately to this room.")}</p>
-        </SettingsContent>
+      <SettingsContent section="activity">
+        <p role="status">
+          {enabled ? t("Git sharing is on.") : t("Git sharing is off.")}
+        </p>
         {enabled && (
           <button className="button" onClick={() => setEnabled(false)}>
             {t("Stop sharing")}
           </button>
         )}
-        <p>{t("Choose shared fields in Settings → Privacy.")}</p>
-        <p className="muted">
-          {enabled
-            ? t(
-                "Sharing the change count and commit hash, plus the fields selected above.",
-              )
-            : t(
-                "Git sharing is off. Others can only see your online presence.",
-              )}
-        </p>
-        {enabled && sharing.files && !presence?.sharing.files && (
-          <p className="muted">
-            {t("The file list is too large. Only the count is shared.")}
-          </p>
-        )}
-      </section>
-      <AmbientPlayer state={live.ambient} onPlaying={live.setPlaying} />
-      <ConflictRadar
-        state={live.state}
-        userId={session.user.id}
-        presence={presence}
-      />
+      </SettingsContent>
+      <SettingsContent section="privacy">
+        <SharingChoices value={sharing} onChange={setSharing} />
+        <p>{t("Metadata changes apply immediately to this room.")}</p>
+      </SettingsContent>
       <div className="room-columns">
         <section className="team-presence">
           <h2>
@@ -1099,15 +1266,25 @@ function RoomWorkspace({
           {visibleMembers.map((member) => {
             const peer = online.get(member.user_id);
             const git = peer?.presence;
+            const profile =
+              member.user_id === session.user.id
+                ? session.user
+                : (peer ?? member);
             return (
               <article className="member-card" key={member.user_id}>
                 <div className="member-title">
+                  <ProfileAvatar profile={profile} small />
                   <strong>
-                    {member.display_name}
+                    {profile.display_name}
                     {member.user_id === session.user.id ? t(" (you)") : ""}
                   </strong>
                   <span>{peer ? t("Online") : t("Outside the room")}</span>
                 </div>
+                {profile.custom_status && (
+                  <p className="member-custom-status">
+                    {t("Custom status")}: {profile.custom_status}
+                  </p>
+                )}
                 {git ? (
                   <>
                     <p>
@@ -1158,7 +1335,50 @@ function RoomWorkspace({
           </ol>
         </section>
       </div>
-      <App embedded onSnapshot={onSnapshot} />
+      <App
+        embedded
+        repositoryActions={
+          <div className="repo-sharing">
+            <p role="status" className="muted">
+              {enabled
+                ? t("Git sharing is on.")
+                : t(
+                    "Git sharing is off. Others can only see your online presence.",
+                  )}
+            </p>
+            <button
+              className="button"
+              disabled={!snapshot}
+              onClick={() => setSharingPrompt(true)}
+            >
+              {t("Choose sharing")}
+            </button>
+            {enabled && (
+              <button className="button" onClick={() => setEnabled(false)}>
+                {t("Stop sharing")}
+              </button>
+            )}
+            {enabled && sharing.files && !presence?.sharing.files && (
+              <p className="muted">
+                {t("The file list is too large. Only the count is shared.")}
+              </p>
+            )}
+          </div>
+        }
+        onSnapshot={onSnapshot}
+        onProjectChange={() => {
+          setEnabled(false);
+          setSnapshot(null);
+          root.current = null;
+          promptedRoot.current = null;
+          setSharingPrompt(false);
+        }}
+        roomScope={{
+          server: canonicalServer(API_URL),
+          accountId: session.user.id,
+          roomId: room.id,
+        }}
+      />
     </div>
   );
 }

@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import DesktopApp from "./DesktopApp";
 
@@ -7,14 +13,19 @@ const mocks = vi.hoisted(() => ({
   read: vi.fn(),
   save: vi.fn(),
   clear: vi.fn(),
+  invoke: vi.fn(),
 }));
-vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true }));
+vi.mock("@tauri-apps/api/core", () => ({
+  isTauri: () => true,
+  invoke: mocks.invoke,
+}));
 vi.mock("./lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./lib/api")>()),
   api: mocks.api,
   credentials: { read: mocks.read, save: mocks.save, clear: mocks.clear },
 }));
 beforeEach(() => {
+  mocks.invoke.mockResolvedValue(null);
   Object.defineProperty(HTMLDialogElement.prototype, "close", {
     configurable: true,
     value: vi.fn(),
@@ -354,4 +365,81 @@ it("does not describe a later login failure as an uncertain registration", async
     "textContent",
     "Cannot reach the server. Check your connection and try again.",
   );
+});
+
+it("keeps unsigned local Settings outside signed-team sidebar styling", async () => {
+  mocks.read.mockResolvedValue(null);
+  render(<DesktopApp />);
+  fireEvent.click(await screen.findByRole("button", { name: "Local mode" }));
+  const settings = screen.getByRole("button", { name: "Settings" });
+  expect(settings.closest(".signed-main")).toBeNull();
+  expect(settings.closest(".signed-layout")).toBeNull();
+  expect(settings.closest(".local-profile")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Sign in online" })).toBeTruthy();
+});
+
+it("combines signed-in Local navigation and repository actions in one sidebar", async () => {
+  mocks.read.mockResolvedValue("token");
+  mocks.api.mockImplementation(async (path: string) => {
+    if (path === "/auth/me")
+      return {
+        id: "user",
+        email: "test@example.com",
+        display_name: "Test user",
+      };
+    if (path === "/teams")
+      return [
+        { id: "alpha", name: "Alpha team" },
+        { id: "beta", name: "Beta team" },
+      ];
+    if (path.endsWith("/members")) return [{ user_id: "user", role: "member" }];
+    if (path === "/teams/alpha/rooms")
+      return [{ id: "room-alpha", team_id: "alpha", name: "Alpha room" }];
+    if (path === "/teams/beta/rooms")
+      return [{ id: "room-beta", team_id: "beta", name: "Beta room" }];
+    return [];
+  });
+  render(<DesktopApp />);
+  await screen.findByRole("button", { name: /Alpha room/ });
+  fireEvent.click(screen.getByRole("button", { name: "Local mode" }));
+  const sidebar = screen.getByRole("complementary");
+  expect(document.querySelectorAll("aside")).toHaveLength(1);
+  expect(sidebar.className).toBe("team-sidebar");
+  expect(within(sidebar).getByRole("link", { name: "Overview" })).toBeTruthy();
+  expect(
+    within(sidebar).getByRole("button", { name: "Choose folder" }),
+  ).toBeTruthy();
+  expect(
+    within(sidebar)
+      .getByRole("button", { name: "Local mode" })
+      .getAttribute("aria-current"),
+  ).toBe("true");
+  expect(
+    within(sidebar)
+      .getByRole("button", { name: "Settings" })
+      .closest(".signed-profile"),
+  ).toBeTruthy();
+  expect(
+    within(sidebar).getByRole("navigation", { name: "Team rooms" }),
+  ).toBeTruthy();
+  expect(
+    within(sidebar).getByRole("button", { name: "Alpha room" }),
+  ).toBeTruthy();
+  expect(
+    within(sidebar).getByRole("button", { name: "Beta team" }),
+  ).toBeTruthy();
+  fireEvent.click(within(sidebar).getByRole("button", { name: "Alpha room" }));
+  expect(
+    await screen.findByRole("heading", { name: "Alpha room" }),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      "Git sharing is off. Others can only see your online presence.",
+    ),
+  ).toBeTruthy();
+  expect(document.querySelectorAll(".team-sidebar")).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Local mode" }));
+  fireEvent.click(screen.getByRole("button", { name: "Beta team" }));
+  expect(await screen.findByRole("button", { name: /Beta room/ })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Overview" })).toBeNull();
 });

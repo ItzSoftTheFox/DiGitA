@@ -17,14 +17,73 @@ if (
 if (address.username || address.password || address.search || address.hash)
   throw new Error("Invalid server address.");
 
-export type User = { id: string; email: string; display_name: string };
+export const avatars = ["initials", "fox", "cat", "robot", "leaf"] as const;
+export const avatarColors = [
+  "slate",
+  "blue",
+  "green",
+  "amber",
+  "rose",
+] as const;
+export type Profile = {
+  display_name: string;
+  avatar: (typeof avatars)[number];
+  avatar_color: (typeof avatarColors)[number];
+  custom_status: string;
+};
+// Defaults support accounts and room snapshots from earlier pilot versions.
+export type User = {
+  id: string;
+  email: string;
+  display_name: string;
+} & Partial<Profile>;
 export type Team = { id: string; name: string };
 export type Room = { id: string; team_id: string; name: string };
 export type Member = {
   user_id: string;
   display_name: string;
   role: "owner" | "admin" | "member";
-};
+} & Partial<Profile>;
+export type Invitation = { id: string; expires_at: string };
+export type CreatedInvitation = Invitation & { code: string };
+export function profileOf(user: Partial<Profile>): Profile {
+  return {
+    display_name: user.display_name ?? "",
+    avatar: user.avatar ?? "initials",
+    avatar_color: user.avatar_color ?? "slate",
+    custom_status: user.custom_status ?? "",
+  };
+}
+export function validatedProfile(
+  value: unknown,
+  accountId: string,
+): User & Profile {
+  if (!value || typeof value !== "object") throw invalidProfileResponse();
+  const user = value as User;
+  if (
+    user.id !== accountId ||
+    typeof user.email !== "string" ||
+    typeof user.display_name !== "string" ||
+    !user.display_name.trim() ||
+    user.display_name !== user.display_name.trim() ||
+    user.display_name.length > 80 ||
+    !avatars.includes(user.avatar as Profile["avatar"]) ||
+    !avatarColors.includes(user.avatar_color as Profile["avatar_color"]) ||
+    typeof user.custom_status !== "string" ||
+    user.custom_status.length > 120 ||
+    user.custom_status !== user.custom_status.trim()
+  )
+    throw invalidProfileResponse();
+  return user as User & Profile;
+}
+function invalidProfileResponse() {
+  return new ApiError(
+    0,
+    "The server returned an invalid profile. Refresh your profile before saving again.",
+    0,
+    true,
+  );
+}
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -55,7 +114,10 @@ function responseMessage(status: number, path: string, detail: unknown) {
   if (status === 403)
     return path === "/auth/register"
       ? "Registration is currently closed."
-      : "You do not have permission for this action. Ask a team owner or admin.";
+      : /^\/teams\/[^/]+$/.test(path) &&
+          detail === "Only the team owner can delete this team."
+        ? "Only the team owner can delete this team."
+        : "You do not have permission for this action. Ask a team owner or admin.";
   if (status === 404)
     return path === "/invitations/accept"
       ? "This invitation is invalid, expired, or already used. Ask for a new code."

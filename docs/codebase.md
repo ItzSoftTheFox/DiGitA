@@ -5,14 +5,14 @@ Paths below are relative to the repository root.
 ## Desktop interface
 
 `src/main.tsx` mounts `DesktopApp`. `src/DesktopApp.tsx` owns authentication,
-team/room navigation and the active room. `src/App.tsx` renders the local repository
+joined-team sidebar, signed-in profile footer and active room. `src/App.tsx` renders the local repository
 workspace, also used inside a team room.
 
 | Directory | Main files and responsibilities |
 | --- | --- |
-| `src/components/` | `LanguageSettings.tsx`: Settings context/dialog; `QuickStart.tsx`: introduction; `ConflictRadar.tsx`: overlap warnings/notifications; `AmbientPlayer.tsx`: shared playback; `RequestFeedback.tsx`: connection/request notices |
-| `src/hooks/` | `useRepository.ts`: Git polling; `useRoom.ts`: WebSocket lifecycle and permitted metadata; `requestFeedback.ts`: online status, slow-request hints and retry delays |
-| `src/lib/` | `api.ts`: HTTP requests and session credentials; `repository.ts`: Tauri Git command, snapshot types and browser demo |
+| `src/components/` | `LanguageSettings.tsx`: Settings/dialog and draft navigation; `ProfileEditor.tsx`: profiles and bundled avatars; `TeamAdministration.tsx`: member/invitation controls and owner-only team deletion; `SharingConfirmation.tsx`: explicit room/repository association and sharing choices; `Preferences.tsx`: local preferences/projects; `QuickStart.tsx`: introduction; `ConflictRadar.tsx`: animated nonmodal overlap drawer with manual toggle and reconnect-safe automatic warnings; `AmbientPlayer.tsx`: legacy playback awaiting Phase 7 removal (not mounted in rooms); `RequestFeedback.tsx`: request notices |
+| `src/hooks/` | `useRepository.ts`: serialized Git polling and stale/incomplete safeguards; `useRoom.ts`: WebSocket lifecycle and permitted metadata; `requestFeedback.ts`: online status, slow-request hints and retry delays |
+| `src/lib/` | `api.ts`: HTTP requests and session credentials; `repository.ts`: Tauri Git command, snapshot types and browser demo; `preferences.ts`: validated local storage and scoped room-folder associations |
 | `src/i18n/` | `index.ts`: translation helpers and language state; `translations.cs.json`: Czech translations |
 | `src/styles/` | `styles.css`: base interface; `collaboration.css`: team/room interface |
 
@@ -21,19 +21,33 @@ The browser demo cannot inspect a real local repository.
 
 ## Native Git and sessions
 
-`src-tauri/src/main.rs` exposes repository reads and OS credential-store commands
-to the interface. `crates/git-presence/src/lib.rs` reads Git status and commit
-metadata through Git CLI processes. It also contains Rust tests using temporary
-repositories. Native commands do not perform Git writes.
+`src-tauri/src/main.rs` exposes repository reads, local preference commands and
+OS credential-store commands to the interface. `src-tauri/src/preferences.rs`
+validates local JSON, bounds I/O and saves through atomic replacement. Preferences
+exclude credentials, sharing consent, listening state and OS permission.
+`crates/git-presence/src/lib.rs` reads Git status, commits, local upstream counts
+and operation markers through bounded Git CLI processes. Commands allow five
+seconds and 8 MiB combined stdout/stderr; snapshots allow fifteen seconds.
+Limit failures terminate/reap Git and return errors rather than partial lists.
+Tests use real temporary repositories, including conflicts and linked worktrees.
+Native commands never fetch or perform Git writes. New tracking/operation data
+stays local and does not change the presence contract.
 
 ## Collaboration API
 
 `backend/digita_api/main.py` creates the FastAPI application and HTTP routes.
 `models.py`, `database.py`, and `backend/migrations/` define persisted account,
 team, room, invitation and session data. `security.py` handles authentication.
+Account profiles are persisted in PostgreSQL; team roster outputs exclude account
+email and credentials. Invitation listings contain active IDs/expiry; raw codes
+are returned only at creation.
 
 `backend/digita_api/realtime.py` manages live WebSocket rooms, presence, conflict
-warnings, the timeline and ambient state in memory. Run one backend worker.
+warnings, the timeline and ambient state in memory. Committed account and
+membership changes refresh existing live peers; membership removal closes their
+sockets and removes presence/conflicts. Owner-only `DELETE /teams/{team_id}`
+atomically cascades team data, then closes all affected sockets and purges live
+rooms. Accounts and other teams remain. Run one backend worker.
 `config.py` holds configuration; the limits/quota modules bound requests and usage.
 `deploy.py` and `maintenance.py` cover startup and expiry cleanup.
 

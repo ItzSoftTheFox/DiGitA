@@ -74,7 +74,22 @@ test("two accounts create a room, share private-by-default Git presence and reco
         ],
       };
       native.__TAURI_INTERNALS__ = {
-        invoke: async (command: string) => {
+        invoke: async (command: string, args?: { preferences?: unknown }) => {
+          if (command === "load_preferences")
+            return JSON.parse(
+              localStorage.getItem("e2e.native.preferences") ?? "null",
+            );
+          if (command === "save_preferences") {
+            localStorage.setItem(
+              "e2e.native.preferences",
+              JSON.stringify(args?.preferences),
+            );
+            return null;
+          }
+          if (command === "clear_preferences") {
+            localStorage.removeItem("e2e.native.preferences");
+            return null;
+          }
           if (command === "read_repository")
             return structuredClone(native.gitSnapshot);
           if (command === "plugin:dialog|open")
@@ -140,47 +155,41 @@ test("two accounts create a room, share private-by-default Git presence and reco
     await member.getByRole("button", { name: "Team menu" }).click();
     await expect(
       member.getByRole("region", { name: "Team administration" }),
-    ).toContainText("Ask an owner or admin");
+    ).toContainText("Petr (you)");
+    await expect(
+      member.getByRole("button", { name: "Leave team", exact: true }),
+    ).toBeVisible();
     await expect(
       member.getByRole("button", { name: "Invite member" }),
     ).toHaveCount(0);
     await owner.getByRole("button", { name: /Shared project/ }).click();
     await member.getByRole("button", { name: /Shared project/ }).click();
-    await expect(owner.getByRole("status")).toHaveText("Connected live");
-    await expect(member.getByRole("status")).toHaveText("Connected live");
-    const ownerAudio = owner.locator(".ambient-player audio");
-    const memberAudio = member.locator(".ambient-player audio");
-    await owner.getByRole("button", { name: "Play for everyone" }).click();
+    await expect(owner.locator(".room-heading").getByRole("status")).toHaveText(
+      "Connected live",
+    );
     await expect(
-      member.getByRole("button", { name: "Pause for everyone" }),
-    ).toBeVisible();
-    expect(
-      await memberAudio.evaluate((el: HTMLAudioElement) => el.paused),
-    ).toBe(true);
-    await owner.getByRole("button", { name: "Start listening" }).click();
-    await member.getByRole("button", { name: "Start listening" }).click();
-    await expect
-      .poll(() =>
-        memberAudio.evaluate((el: HTMLAudioElement) => el.currentTime),
-      )
-      .toBeGreaterThan(1);
-    await expect
-      .poll(async () => {
-        const a = await ownerAudio.evaluate(
-          (el: HTMLAudioElement) => el.currentTime,
-        );
-        const b = await memberAudio.evaluate(
-          (el: HTMLAudioElement) => el.currentTime,
-        );
-        const difference = Math.abs(a - b);
-        return Math.min(difference, 30 - difference);
-      })
-      .toBeLessThan(0.8);
+      member.locator(".room-heading").getByRole("status"),
+    ).toHaveText("Connected live");
+    await expect(owner.locator(".privacy-controls")).toHaveCount(0);
+    await expect(member.locator(".ambient-player, audio")).toHaveCount(0);
+    const radarPanel = member.locator("#conflict-radar-panel");
+    const radarToggle = member.getByRole("button", {
+      name: "Conflict Radar",
+      exact: true,
+    });
+    await expect(radarToggle).toHaveAttribute("aria-expanded", "false");
+    await radarToggle.click();
+    await expect(radarPanel).toBeVisible();
+    await expect(radarPanel).toContainText("No overlap detected");
+    await member
+      .getByRole("button", { name: "Close conflict radar", exact: true })
+      .click();
+    await expect(radarPanel).toHaveCount(0);
+    await expect(radarToggle).toBeFocused();
     await member.getByRole("button", { name: "Settings", exact: true }).click();
     await member
       .getByRole("button", { name: "Audio and notifications", exact: true })
       .click();
-    await member.getByRole("slider", { name: /My volume/ }).fill("60");
     await member
       .getByRole("button", { name: "Enable system notifications" })
       .click();
@@ -188,25 +197,6 @@ test("two accounts create a room, share private-by-default Git presence and reco
       "System notifications are not allowed.",
     );
     await member.getByRole("button", { name: "Close settings" }).click();
-    expect(await ownerAudio.evaluate((el: HTMLAudioElement) => el.volume)).toBe(
-      0.25,
-    );
-    expect(
-      await memberAudio.evaluate((el: HTMLAudioElement) => el.volume),
-    ).toBe(0.6);
-    await member.getByRole("button", { name: "Pause for everyone" }).click();
-    await expect
-      .poll(() => ownerAudio.evaluate((el: HTMLAudioElement) => el.paused))
-      .toBe(true);
-    await expect(
-      owner.getByRole("button", { name: "Play for everyone" }),
-    ).toBeVisible();
-    // Wait beyond the shared anti-flapping interval before resuming.
-    await owner.waitForTimeout(550);
-    await owner.getByRole("button", { name: "Play for everyone" }).click();
-    await expect
-      .poll(() => memberAudio.evaluate((el: HTMLAudioElement) => el.paused))
-      .toBe(false);
     const anna = member.locator(".member-card").filter({ hasText: "Anna" });
     await expect(anna).toContainText("Online");
     await owner
@@ -215,13 +205,15 @@ test("two accounts create a room, share private-by-default Git presence and reco
     await expect(
       owner
         .locator(".embedded-workspace")
-        .getByText("Private local folder", { exact: true })
-        .last(),
+        .getByRole("heading", { name: "Private local folder", exact: true }),
     ).toBeVisible();
     await expect(anna).toContainText("Git status is not shared.");
     await owner
       .getByLabel("This repository belongs to this room — share Git status")
       .check();
+    await owner
+      .getByRole("button", { name: "Start sharing", exact: true })
+      .click();
     await expect(anna).toContainText("1 changed files");
     await expect(anna).not.toContainText("feature/team");
     await expect(anna).not.toContainText("src/team.ts");
@@ -241,17 +233,57 @@ test("two accounts create a room, share private-by-default Git presence and reco
     await member
       .getByLabel("This repository belongs to this room — share Git status")
       .check();
+    await member
+      .getByRole("button", { name: "Start sharing", exact: true })
+      .click();
     const radar = member.locator(".conflict-radar");
     await expect(radar.locator(".conflict-list li")).toHaveCount(0);
     await member.getByRole("button", { name: "Settings", exact: true }).click();
     await member.getByRole("button", { name: "Privacy", exact: true }).click();
     await member.getByLabel("File names", { exact: true }).check();
-    await member.getByRole("button", { name: "Close settings" }).click();
+    await expect(radarToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      member.getByLabel("File names", { exact: true }),
+    ).toBeFocused();
+    await member.keyboard.press("Escape");
+    await expect(
+      member.getByRole("button", { name: "Close settings" }),
+    ).toHaveCount(0);
     await expect(radar.locator(".conflict-list li")).toHaveCount(1);
     await expect(radar).toContainText("src/team.ts");
     await expect(radar).toContainText("Anna");
     await expect(radar).toContainText("Petr (you)");
-    // A language change must not remount the room, revoke consent, or restart audio.
+    await expect(radarPanel).toBeVisible();
+    await expect(radarToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      member.getByRole("button", { name: "Settings", exact: true }),
+    ).toBeFocused();
+    await member.keyboard.press("Escape");
+    await expect(radarPanel).toHaveCount(0);
+    await expect(radarToggle).toBeFocused();
+    await radarToggle.click();
+    await expect(radarPanel).toBeVisible();
+    await member.setViewportSize({ width: 800, height: 800 });
+    await expect(radarPanel).toBeVisible();
+    await member.screenshot({
+      path: "artifacts/radar-panel-small.png",
+      animations: "disabled",
+    });
+    await member.emulateMedia({ reducedMotion: "reduce" });
+    expect(
+      await radarPanel.evaluate(
+        (panel) => getComputedStyle(panel).animationName,
+      ),
+    ).toBe("none");
+    await member.emulateMedia({ reducedMotion: "no-preference" });
+    await member.setViewportSize({ width: 1200, height: 1000 });
+    const ownerCloseRadar = owner.getByRole("button", {
+      name: "Close conflict radar",
+      exact: true,
+    });
+    await expect(ownerCloseRadar).toBeVisible();
+    await ownerCloseRadar.click();
+    // A language change must not remount the room or revoke sharing consent.
     const connectionCount = connections;
     const frameCount = frames.length;
     await owner.getByRole("button", { name: "Settings", exact: true }).click();
@@ -260,41 +292,42 @@ test("two accounts create a room, share private-by-default Git presence and reco
       .getByRole("combobox", { name: "Language", exact: true })
       .selectOption("cs");
     await owner.getByRole("button", { name: "Zavřít nastavení" }).click();
-    await expect(owner.getByRole("status")).toHaveText("Živě připojeno");
+    await expect(owner.locator(".room-heading").getByRole("status")).toHaveText(
+      "Živě připojeno",
+    );
     await expect(
       owner.getByLabel("Názvy souborů", { exact: true }),
     ).toBeChecked();
     await expect(
-      owner.getByLabel("Toto je repozitář této místnosti — sdílet Git stav"),
-    ).toBeChecked();
+      owner.getByRole("button", { name: "Vypnout sdílení", exact: true }),
+    ).toBeVisible();
     await expect(
       owner.getByRole("heading", { name: "Shared project", exact: true }),
     ).toBeVisible();
     await expect(member.locator("html")).toHaveAttribute("lang", "en");
-    expect(await ownerAudio.evaluate((el: HTMLAudioElement) => el.paused)).toBe(
-      false,
-    );
     await owner.getByRole("button", { name: "Nastavení", exact: true }).click();
     await owner.getByRole("button", { name: "Jazyk", exact: true }).click();
     await owner
       .getByRole("combobox", { name: "Jazyk", exact: true })
       .selectOption("en");
     await owner.getByRole("button", { name: "Close settings" }).click();
-    await expect(owner.getByRole("status")).toHaveText("Connected live");
+    await expect(owner.locator(".room-heading").getByRole("status")).toHaveText(
+      "Connected live",
+    );
     expect(connections).toBe(connectionCount);
     expect(frames.length).toBe(frameCount);
     await radar.screenshot({
       path: "artifacts/readme-radar.png",
       style: ".language-settings-button { visibility: hidden; }",
     });
-    await member.locator(".ambient-player").screenshot({
-      path: "artifacts/readme-ambient.png",
-      style: ".language-settings-button { visibility: hidden; }",
-    });
     await member.screenshot({
       path: "artifacts/conflict-radar.png",
       fullPage: true,
     });
+    await member
+      .getByRole("button", { name: "Close conflict radar", exact: true })
+      .click();
+    await expect(radarPanel).toHaveCount(0);
     await owner.evaluate(() => {
       const native = window as unknown as {
         gitSnapshot: { commit: { hash: string }; files: unknown[] };
@@ -321,6 +354,11 @@ test("two accounts create a room, share private-by-default Git presence and reco
     await expect(radar.locator(".conflict-list li")).toHaveCount(1, {
       timeout: 10000,
     });
+    await expect(radarPanel).toBeVisible();
+    await member
+      .getByRole("button", { name: "Close conflict radar", exact: true })
+      .click();
+    await expect(radarPanel).toHaveCount(0);
     await expect(member.locator(".room-timeline")).toContainText(
       "has a different latest commit",
     );
@@ -329,40 +367,30 @@ test("two accounts create a room, share private-by-default Git presence and reco
       fullPage: true,
     });
     await memberContext.setOffline(true);
-    await expect(member.getByRole("status")).not.toHaveText("Connected live", {
+    await expect(
+      member.locator(".room-heading").getByRole("status"),
+    ).not.toHaveText("Connected live", {
       timeout: 20000,
     });
     await expect(anna).not.toContainText("src/next.ts");
-    await expect(radar.locator(".conflict-list li")).toHaveCount(0);
-    await expect
-      .poll(() => memberAudio.evaluate((el: HTMLAudioElement) => el.paused))
-      .toBe(true);
+    await expect(radarPanel).toHaveCount(0);
     await memberContext.setOffline(false);
-    await expect(member.getByRole("status")).toHaveText("Connected live", {
+    await expect(
+      member.locator(".room-heading").getByRole("status"),
+    ).toHaveText("Connected live", {
       timeout: 20000,
     });
     await expect(anna).toContainText("src/next.ts");
+    await expect(radarToggle).toHaveAttribute("aria-expanded", "false");
+    await radarToggle.click();
     await expect(radar.locator(".conflict-list li")).toHaveCount(1);
-    await expect
-      .poll(() => memberAudio.evaluate((el: HTMLAudioElement) => el.paused))
-      .toBe(false);
-    await expect
-      .poll(async () => {
-        const a = await ownerAudio.evaluate(
-          (el: HTMLAudioElement) => el.currentTime,
-        );
-        const b = await memberAudio.evaluate(
-          (el: HTMLAudioElement) => el.currentTime,
-        );
-        const difference = Math.abs(a - b);
-        return Math.min(difference, 30 - difference);
-      })
-      .toBeLessThan(0.8);
     await expect(member.locator(".team-presence [role=alert]")).toHaveCount(0);
     await member.screenshot({
-      path: "artifacts/ambient-room.png",
+      path: "artifacts/radar-reconnected-room.png",
       fullPage: true,
     });
+    await expect(ownerCloseRadar).toBeVisible();
+    await ownerCloseRadar.click();
     await owner.getByRole("button", { name: "Settings", exact: true }).click();
     await owner.getByRole("button", { name: "Privacy", exact: true }).click();
     await owner.getByLabel("File names", { exact: true }).uncheck();
@@ -386,6 +414,9 @@ test("two accounts create a room, share private-by-default Git presence and reco
     expect(frames.join("\n")).not.toContain("/workspace/private-repository");
     expect(frames.join("\n")).not.toContain("Private Author");
     expect(frames.join("\n")).not.toContain("Private commit message");
+    await member
+      .getByRole("button", { name: "Close conflict radar", exact: true })
+      .click();
     await member.getByRole("button", { name: "All rooms" }).click();
     await expect(
       owner.locator(".member-card").filter({ hasText: "Petr" }),

@@ -81,6 +81,10 @@ class Peer:
     name: str
     token_hash: str
     presence: dict | None = None
+    avatar: str = "initials"
+    avatar_color: str = "slate"
+    custom_status: str = ""
+    role: str = "member"
 
 
 @dataclass
@@ -103,7 +107,14 @@ class Hub:
     def identity(self, room_id: str, token_hash: str):
         with self.sessions() as session:
             row = session.execute(
-                select(User.id, User.display_name)
+                select(
+                    User.id,
+                    User.display_name,
+                    User.avatar,
+                    User.avatar_color,
+                    User.custom_status,
+                    Membership.role,
+                )
                 .join(AuthSession, AuthSession.user_id == User.id)
                 .join(Membership, Membership.user_id == User.id)
                 .join(Room, Room.team_id == Membership.team_id)
@@ -114,6 +125,42 @@ class Hub:
                 )
             ).first()
             return tuple(row) if row else None
+
+    async def refresh_user(self, user_id: str):
+        # HTTP mutations run on the same application's event loop after commit.
+        # Keep existing consent, presence, conflicts and playback in each live room.
+        for room_id, room in list(self.rooms.items()):
+            async with room.lock:
+                if user_id not in room.peers:
+                    continue
+                await self.broadcast(room_id, room)
+                if not room.peers and self.rooms.get(room_id) is room:
+                    self.rooms.pop(room_id, None)
+
+    async def revoke_rooms(self, room_ids: list[str]):
+        async def revoke(room_id: str):
+            room = self.rooms.get(room_id)
+            if room is None:
+                return
+            async with room.lock:
+                peers = list(room.peers.values())
+                room.peers.clear()
+                room.conflicts.clear()
+                room.events.clear()
+                room.conflict_event_times.clear()
+                if self.rooms.get(room_id) is room:
+                    self.rooms.pop(room_id, None)
+
+                async def close(peer: Peer):
+                    peer.presence = None
+                    try:
+                        await asyncio.wait_for(peer.socket.close(code=4403), 2)
+                    except (TimeoutError, RuntimeError, OSError):
+                        pass
+
+                await asyncio.gather(*(close(peer) for peer in peers))
+
+        await asyncio.gather(*(revoke(room_id) for room_id in room_ids))
 
     def event(self, room: LiveRoom, peer: Peer, kind: str):
         room.events.append(
@@ -165,19 +212,38 @@ class Hub:
     async def broadcast(self, room_id: str, room: LiveRoom):
         # Recheck recipients before sending private room state, including revoked sessions.
         for user_id, peer in list(room.peers.items()):
-            if not await asyncio.to_thread(self.identity, room_id, peer.token_hash):
+            identity = await asyncio.to_thread(self.identity, room_id, peer.token_hash)
+            if not identity:
                 room.peers.pop(user_id, None)
+                self.event(room, peer, "presence.left")
                 try:
                     await asyncio.wait_for(peer.socket.close(code=4403), 2)
                 except (TimeoutError, RuntimeError, OSError):
                     pass
+            else:
+                (
+                    _,
+                    peer.name,
+                    peer.avatar,
+                    peer.avatar_color,
+                    peer.custom_status,
+                    peer.role,
+                ) = identity
         while True:
             self.update_conflicts(room)
             state = {
                 "type": "room.state",
                 "room_id": room_id,
                 "members": [
-                    {"user_id": p.user_id, "display_name": p.name, "presence": p.presence}
+                    {
+                        "user_id": p.user_id,
+                        "display_name": p.name,
+                        "avatar": p.avatar,
+                        "avatar_color": p.avatar_color,
+                        "custom_status": p.custom_status,
+                        "role": p.role,
+                        "presence": p.presence,
+                    }
                     for p in room.peers.values()
                 ],
                 "events": list(room.events),
@@ -249,13 +315,20 @@ def router(hub: Hub, allowed_origins: list[str]) -> APIRouter:
                 try:
                     raw = await asyncio.wait_for(socket.receive_text(), 10)
                 except TimeoutError:
+                    if room.peers.get(peer.user_id) is not peer:
+                        break
                     if monotonic() - last_seen > 40:
                         await socket.close(code=4408)
                         break
-                    if not await asyncio.to_thread(hub.identity, room_id, token_hash):
+                    identity = await asyncio.to_thread(hub.identity, room_id, token_hash)
+                    if room.peers.get(peer.user_id) is not peer:
+                        break
+                    if not identity:
                         await socket.close(code=4403)
                         break
                     continue
+                if room.peers.get(peer.user_id) is not peer:
+                    break
                 last_seen = monotonic()
                 while messages and messages[0] < last_seen - 1:
                     messages.popleft()
@@ -263,7 +336,10 @@ def router(hub: Hub, allowed_origins: list[str]) -> APIRouter:
                 if len(messages) > 8 or len(raw.encode()) > 65536:
                     await socket.close(code=1008)
                     break
-                if not await asyncio.to_thread(hub.identity, room_id, token_hash):
+                identity = await asyncio.to_thread(hub.identity, room_id, token_hash)
+                if room.peers.get(peer.user_id) is not peer:
+                    break
+                if not identity:
                     await socket.close(code=4403)
                     break
                 data = json.loads(raw)
