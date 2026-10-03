@@ -16,7 +16,6 @@ npm run test:e2e
 cp artifacts/workspace-desktop.png docs/images/workspace.png
 cp artifacts/readme-dashboard.png docs/images/dashboard.png
 cp artifacts/readme-radar.png docs/images/conflict-radar.png
-cp artifacts/readme-ambient.png docs/images/ambient.png
 ```
 
 Review the captures before committing. Raw test output stays in ignored

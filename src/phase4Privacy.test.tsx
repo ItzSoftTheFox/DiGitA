@@ -65,7 +65,6 @@ beforeEach(() => {
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
   mocks.room.mockReturnValue({
     state: null,
-    ambient: null,
     status: "online",
     setPlaying: () => true,
     reconnect: () => {},
@@ -339,7 +338,6 @@ it("returns revoked room access to refreshed teams and clears previous Git shari
   });
   mocks.room.mockReturnValue({
     state: null,
-    ambient: null,
     status: "denied",
     setPlaying: () => false,
     reconnect: () => {},

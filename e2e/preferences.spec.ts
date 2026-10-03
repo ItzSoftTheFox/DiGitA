@@ -122,7 +122,7 @@ async function settings(page: Page, section: string) {
   return page.getByRole("dialog");
 }
 
-test("restores personal volume without requesting OS permission or opening folders in browser preview", async ({
+test("legacy preferences migrate without playback or OS permission requests in browser preview", async ({
   page,
 }) => {
   await page.addInitScript((preferences) => {
@@ -134,15 +134,30 @@ test("restores personal volume without requesting OS permission or opening folde
       );
   }, initialPreferences());
   await page.goto("/");
-  const dialog = await settings(page, "Audio and notifications");
-  await expect(dialog.getByRole("slider", { name: /My volume/ })).toHaveValue(
-    "63",
+  const dialog = await settings(page, "Notifications");
+  await expect(dialog.getByRole("slider")).toHaveCount(0);
+  await expect(page.locator("audio")).toHaveCount(0);
+  await expect(dialog).toContainText("Notifications were remembered");
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Remove Second project from recent projects",
+      exact: true,
+    })
+    .click();
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("digita.preferences.v1")!),
   );
-  await dialog.getByRole("slider", { name: /My volume/ }).fill("48");
+  expect(stored.version).toBe(2);
+  expect(stored).not.toHaveProperty("volume");
+  expect(stored.notificationsEnabled).toBe(true);
+  expect(stored.recentProjects).toEqual([
+    { path: firstPath, name: "First project" },
+  ]);
   await page.reload();
-  await settings(page, "Audio and notifications");
-  await expect(page.getByRole("slider", { name: /My volume/ })).toHaveValue(
-    "48",
+  await settings(page, "Notifications");
+  await expect(page.getByRole("dialog")).toContainText(
+    "Notifications were remembered",
   );
 });
 
@@ -203,7 +218,7 @@ test("native recent projects restore and can be switched, removed, and cleared",
   page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", {
-      name: "Clear project and audio preferences",
+      name: "Clear project and notification preferences",
       exact: true,
     })
     .click();
@@ -265,19 +280,24 @@ test("failed saving keeps session changes visible and can be retried", async ({
   await page.evaluate(() => {
     (window as unknown as { failSave: boolean }).failSave = true;
   });
-  const dialog = await settings(page, "Audio and notifications");
-  await dialog.getByRole("slider", { name: /My volume/ }).fill("40");
+  const dialog = await settings(page, "Projects");
+  await dialog
+    .getByRole("button", {
+      name: "Remove Second project from recent projects",
+      exact: true,
+    })
+    .click();
   await expect(dialog.getByRole("alert")).toContainText(
     "Could not save local preferences.",
   );
-  await expect(dialog.getByRole("slider", { name: /My volume/ })).toHaveValue(
-    "40",
+  await expect(dialog.getByText("Second project", { exact: true })).toHaveCount(
+    0,
   );
   const stored = await page.evaluate(
     (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
     nativeStorageKey,
   );
-  expect(stored.volume).toBe(63);
+  expect(stored.recentProjects).toHaveLength(2);
   await page.evaluate(() => {
     (window as unknown as { failSave: boolean }).failSave = false;
   });
@@ -288,10 +308,10 @@ test("failed saving keeps session changes visible and can be retried", async ({
     dialog.getByText("Preferences saved on this device.", { exact: true }),
   ).toBeVisible();
   await page.reload();
-  await settings(page, "Audio and notifications");
-  await expect(page.getByRole("slider", { name: /My volume/ })).toHaveValue(
-    "40",
-  );
+  await settings(page, "Projects");
+  await expect(
+    page.getByRole("dialog").getByText("Second project", { exact: true }),
+  ).toHaveCount(0);
 });
 
 test("damaged saved preferences are preserved until an explicit reset", async ({
@@ -302,11 +322,11 @@ test("damaged saved preferences are preserved until an explicit reset", async ({
     localStorage.setItem("digita.preferences.v1", "{damaged");
   });
   await page.goto("/");
-  const dialog = await settings(page, "Audio and notifications");
+  const dialog = await settings(page, "Notifications");
   await expect(dialog.getByRole("alert")).toContainText(
     "Saved data is preserved.",
   );
-  await dialog.getByRole("slider", { name: /My volume/ }).fill("72");
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
   expect(
     await page.evaluate(() => localStorage.getItem("digita.preferences.v1")),
   ).toBe("{damaged");
@@ -314,25 +334,25 @@ test("damaged saved preferences are preserved until an explicit reset", async ({
   page.once("dialog", (confirmation) => confirmation.accept());
   await dialog
     .getByRole("button", {
-      name: "Clear project and audio preferences",
+      name: "Clear project and notification preferences",
       exact: true,
     })
     .click();
   await expect(
-    dialog.getByText("Project and audio preferences cleared on this device.", {
-      exact: true,
-    }),
+    dialog.getByText(
+      "Project and notification preferences cleared on this device.",
+      {
+        exact: true,
+      },
+    ),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Audio and notifications", exact: true })
+    .getByRole("button", { name: "Notifications", exact: true })
     .click();
-  await expect(dialog.getByRole("slider", { name: /My volume/ })).toHaveValue(
-    "25",
+  await expect(dialog.getByRole("slider")).toHaveCount(0);
+  await expect(dialog.getByText("Notifications were remembered")).toHaveCount(
+    0,
   );
-  await dialog.getByRole("slider", { name: /My volume/ }).fill("35");
-  await expect(
-    dialog.getByText("Preferences saved on this device.", { exact: true }),
-  ).toBeVisible();
 });
 
 test("room folder restoration and switching always require fresh sharing consent", async ({

@@ -4,6 +4,7 @@ import {
   render,
   screen,
   within,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import DesktopApp from "./DesktopApp";
@@ -160,6 +161,7 @@ async function openDashboard() {
   );
   render(<DesktopApp />);
   await screen.findByText("Your first shared space.");
+  await waitFor(() => expect(screen.queryByText("Loading rooms…")).toBeNull());
 }
 
 it("blocks rapid and ambiguous creation retries until a successful refresh and explicit check", async () => {
@@ -264,6 +266,7 @@ it("keeps pending mutations locked when switching to local mode and back", async
     await screen.findByRole("button", { name: "Back to team space" }),
   );
   await screen.findByText("Your first shared space.");
+  await waitFor(() => expect(screen.queryByText("Loading rooms…")).toBeNull());
   expect(screen.getByRole("button", { name: "Create team" })).toHaveProperty(
     "disabled",
     true,

@@ -27,7 +27,7 @@ another directory is specified. Dated validation results are historical records.
 
 | See work as it happens                                                         | Catch overlaps early                                              | Find your focus                                             |
 | ------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------- |
-| Share permitted Git metadata with your room, while code stays on your machine. | See when teammates change the same file, before a commit or push. | Listen to a synchronized ambient loop with your own volume. |
+| Share permitted Git metadata with your room, while code stays on your machine. | See when teammates change the same file, before a commit or push. | Use a shared room with a live timeline and optional system notifications. |
 
 ## Screenshots
 
@@ -61,15 +61,15 @@ It highlights possible risk; it does not claim a Git merge conflict is certain.
 
 ## Project status
 
-**0.1.0 development pilot. Current distribution priority: Arch Linux x86_64.**
+**0.2.0 release candidate. Current distribution priority: Arch Linux x86_64.**
 
 The desktop includes registration/login, a dashboard of teams and rooms, invitations, online presence, optional Git metadata sharing, and a live timeline. The local Git workspace remains available without signing in. The native application passes `cargo check`, builds, and displays its interface on Arch Linux with Wayland.
 
-FastAPI provides accounts, team permissions, single-use invitations, and authenticated WebSocket rooms. PostgreSQL stores account/team data; active presence, conflict warnings, ambient playback, and the last 100 room events live in server memory. Validation is described below.
+FastAPI provides accounts, team permissions, single-use invitations, and authenticated WebSocket rooms. PostgreSQL stores account/team data; active presence, conflict warnings, and the last 100 room events live in server memory. Validation is described below.
 
 English is the default application language; Czech is available in **Settings → Language**. An Arch pilot package and a separate
-HTML + Tailwind download website are prepared. Work toward 0.2.0 starts with
-regression checks and native pilot validation; it is not a finished release.
+HTML + Tailwind download website are prepared. Phase 7 implementation and automated validation are complete; native two-device
+and clean-environment package validation remain open. This is not a published release.
 See the [validation index](README.md#design-and-validation) and
 [remaining native checklist](history/validation-0.2.0-phase-1.md).
 
@@ -81,7 +81,6 @@ See the [validation index](README.md#design-and-validation) and
 - Enable sharing explicitly, with independent controls for branch names, file names, and commit messages.
 - Reconnect after network interruptions and receive the room's current state.
 - Detect shared file paths changed by multiple online members, with live warning removal and optional desktop notifications.
-- Listen to a bundled ambient loop with shared play/pause, personal volume, and reconnect synchronization.
 - Select a local Git repository through a native directory picker and disconnect it at any time.
 - View the current branch, latest commit, changed files and local upstream ahead/behind.
 - Distinguish staged and unstaged changes, search paths, and filter the file list.
@@ -102,7 +101,7 @@ profile and Settings remain at bottom left, including in local mode. The dashboa
 offers team/room creation and invitation acceptance according to permissions.
 
 The local Git overview is part of the selected room's workspace,
-alongside members, activity, Conflict Radar, and ambient audio. Users can
+alongside members, activity and Conflict Radar. Users can
 return to the dashboard to switch rooms. In this UX, a "server" means a team space;
 selecting multiple backend hosts is a separate future feature.
 
@@ -129,7 +128,7 @@ write operations are outside the 0.2.0 scope.
 
 ### MVP target
 
-Two users should be able to join the same room, connect separate working copies of the same repository, see each other's branch and local activity, receive warnings when they edit the same file, and listen to synchronized ambient audio. Each user must be able to disable file-name sharing.
+Two users should be able to join the same room, connect separate working copies of the same repository, see each other's branch and local activity, receive warnings when they edit the same file. Each user must be able to disable file-name sharing.
 
 Conflict Radar indicates potential overlap; it does not guarantee that Git will produce a merge conflict or resolve conflicts automatically.
 
@@ -157,7 +156,7 @@ flowchart LR
     B <-->|HTTP / WebSocket metadata| E[FastAPI — one process]
     D <-->|HTTP / WebSocket metadata| E
     E --> F[(PostgreSQL: accounts, teams, rooms)]
-    E --> G[Memory: presence, radar, timeline, ambient state]
+    E --> G[Memory: presence, radar, timeline]
 ```
 
 Each member keeps their own repository and uses their normal Git remote to
@@ -241,9 +240,10 @@ Stop the standalone preview server before running `npm run tauri dev`; both use 
 
 ### Background music removal
 
-Room background playback and its controls have been removed. Phase 7 includes
-removing the remaining bundled audio, legacy playback code/protocol, and volume
-preferences. System notifications remain available independently of music.
+Phase 7 removes bundled audio, playback code and WebSocket commands, and volume
+preferences. System notifications remain available under Settings → Notifications.
+Preferences v2 accepts valid v1 data, drops volume and preserves projects, room
+folders and notification intent. The storage filename/key stays the same.
 
 ### Conflict Radar
 
@@ -360,8 +360,8 @@ A VM on the same computer is sufficient for this development check.
 
 5. Create a team and room on Linux, invite the Windows account, and enter the
    same room. Connect each local repository and enable the fields to share.
-   Check live changes, the Conflict Radar procedure above, and ambient playback
-   on both clients. Interrupt/reopen the tunnel to check reconnection.
+   Check live changes, the Conflict Radar procedure above, sharing withdrawal
+   and membership removal on both clients. Interrupt/reopen the tunnel to check reconnection.
 
 ### Troubleshooting
 
@@ -373,7 +373,6 @@ A VM on the same computer is sufficient for this development check.
 | Windows `EBUSY` under `src-tauri/target`                  | Use the current `vite.config.ts`, which excludes `src-tauri` from Vite watching; restart the development app.                                                |
 | `Test-NetConnection` is not recognized                    | Run it in PowerShell, not Command Prompt.                                                                                                                    |
 | SSH closes or `/health` is unreachable through the tunnel | Check the host address, SSH authentication/server, local port availability, and whether the Linux backend is running.                                        |
-| Ambient controls stay unavailable after an update         | Restart the backend to load the new WebSocket protocol and reopen the room.                                                                                  |
 | Room state vanishes after everyone leaves                 | Expected: live room state is held in memory, while account/team/room records remain in PostgreSQL.                                                           |
 
 ## Development and testing
@@ -402,10 +401,10 @@ npm run format
 Run `uv sync --locked` in `backend/` before browser tests. Playwright starts an
 isolated API with a temporary SQLite database on port 8001 and a frontend on 1421.
 It tests the local demo and two accounts creating/joining a room, live metadata,
-privacy changes, a changed commit, Conflict Radar, shared audio playback,
-independent volume, dashboard refresh, navigation, and network recovery. Native
+privacy changes, a changed commit, Conflict Radar, preference migration,
+dashboard refresh, navigation, diagnostics privacy and network recovery. Native
 Git reads, the directory picker, and session-store calls are mocked; HTTP,
-WebSockets, and WAV playback are real. OS notifications are tested separately
+and WebSockets are real. OS notifications are tested separately
 with mocks, not delivered by these browser tests. Screenshots are in
 the ignored `artifacts/` directory.
 
@@ -413,12 +412,13 @@ Rust dependency versions are recorded in `src-tauri/Cargo.lock` and `crates/git-
 
 ### Current validation
 
-See [0.2.0 phase 6 and the team-navigation follow-up](history/validation-0.2.0-phase-6.md)
+See [Phase 7 evidence](history/validation-0.2.0-phase-7.md) and the
+[0.2.0 exit checklist](checklist-0.2.0.md)
 and the remaining [native pilot checklist](history/validation-0.2.0-phase-1.md).
 The dated results below are historical and do not validate later changes.
 
 Earlier native builds, window rendering and repository selection were checked on
-Arch Linux. Automated checks mock OS boundaries; native keyring, audio,
+Arch Linux. Automated checks mock OS boundaries; native keyring,
 notifications, suspend/resume and two-device validation remain on the checklist.
 Historical Phase 2/3/4 evidence is consolidated in
 [the earlier milestones](history/milestones-0.2.0.md).
@@ -428,14 +428,13 @@ Historical Phase 2/3/4 evidence is consolidated in
 ```text
 src/                    React interface; see codebase.md for components/hooks/lib
 src-tauri/              Tauri application, configuration, and icons
-public/audio/           Bundled ambient WAV and its CC0 provenance/license
-scripts/                Cleanup, ambient audio generation and release tooling
+scripts/                Cleanup and release tooling
 crates/git-presence/    Git inspection library and Rust tests
 e2e/                    Playwright browser tests
 docs/                   Guides, history and published website; see README.md
 backend/digita_api/     FastAPI accounts, teams, rooms, invitations, and WebSockets
 backend/migrations/     Alembic database migrations
-backend/tests/          API, WebSocket, radar, ambient, and migration tests
+backend/tests/          API, WebSocket, radar, protocol rejection and migration tests
 compose.yaml            Local PostgreSQL development database
 ```
 
@@ -453,10 +452,10 @@ removed on the server. The timeline contains generic event descriptions, without
 file names, branch names, or commit messages. Session tokens are kept in memory
 or the OS credential store; web storage contains a remember-login flag, the
 language preference and an intro-dismissal flag, never tokens. Desktop project
-and audio preferences live in `local-preferences.json` in the application's data
+and notification preferences live in `local-preferences.json` in the application's data
 directory. Browser preview stores its permitted preferences in web storage and
-cannot read remembered folders. Neither store contains sharing consent, listening
-state, OS notification permission or credentials.
+cannot read remembered folders. Neither store contains sharing consent,
+OS notification permission or credentials.
 
 Team menus expose member lists, role changes, member removal/leaving, owner-only
 team deletion and active invitation creation/revocation. Owners manage
@@ -471,9 +470,10 @@ The MVP does not include a code editor, shared terminal, live collaborative edit
 
 ## Licensing
 
-The bundled audio has its own [CC0 dedication and provenance](../public/audio/LICENSE.txt).
-That dedication applies to the audio asset only. No project-wide license file
-has been added yet; choose the application license before public distribution.
+DiGitA is licensed under [GPL-3.0-only](../LICENSE), selected by the project owner
+on 2026-10-03. Distributed binaries must have matching corresponding source.
+Third-party dependencies retain their own licenses. The package includes LICENSE;
+public distribution requires publishing the exact source used to build it.
 
 ## Known limitations
 
@@ -522,8 +522,7 @@ See [local preview, editing, and GitHub Pages setup](../website/README.md).
 ### Settings and navigation
 
 The sidebar Settings button is available from sign-in, the dashboard, local work,
-and rooms. Settings has Account and profile, Projects, Privacy, Audio and
-notifications, Language, and About sections. Close it or press Escape to return
+and rooms. Settings has Account and profile, Projects, Privacy, Notifications, Language, and About sections. Close it or press Escape to return
 without losing room connection, repository filters, or sharing consent.
 Sharing status and Stop sharing remain available in Settings and beside the room
 repository controls. Selecting a folder still opens explicit sharing choices.
@@ -551,12 +550,11 @@ Local mode does not open a sharing dialog. Missing or moved folders offer
 **Reassign folder**. Only the active workspace polls Git; late results from a
 previous selection are ignored.
 
-Volume and notification intent are saved locally. Restoring these settings never
-starts listening or requests notification permission. Remembered notifications
+Notification intent is saved locally. Restoring it never requests OS permission. Remembered notifications
 remain inactive without existing OS permission; use **Enable system
-notifications** to review permission. **Clear project and audio preferences**
-confirms before removing remembered folders/associations and resetting volume
-and notification intent. Language and sign-in are kept. Failed writes preserve
+notifications** to review permission. **Clear project and notification preferences**
+confirms before removing remembered folders/associations and resetting
+notification intent. Language and sign-in are kept. Failed writes preserve
 the in-memory choices and offer a retry; failed loads preserve saved data until
 an explicit clear. See [the earlier milestones](history/milestones-0.2.0.md)
 for the automated evidence and remaining desktop checks.
@@ -584,3 +582,7 @@ The website and documentation remain in English.
 
 Source changes do not replace an already built installer. The downloadable
 v0.1.0 archive still contains the earlier UI until a new package is validated.
+
+Settings → About shows the package version and GPL license, opens fixed help/issue
+links and copies only version, browser/desktop runtime and language. It never
+serializes account, repository, error or session objects.

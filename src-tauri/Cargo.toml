@@ -1,8 +1,9 @@
 [package]
 name = "digita"
-version = "0.1.0"
+version = "0.2.0"
 description = "DiGitA local Git workspace"
 edition = "2021"
+license = "GPL-3.0-only"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

@@ -10,6 +10,12 @@ import {
 import { createPortal } from "react-dom";
 import { Settings, X } from "lucide-react";
 import { setLanguage, t, useTranslation, type Language } from "../i18n";
+import { isTauri } from "@tauri-apps/api/core";
+import {
+  diagnosticSummary,
+  openProjectLink,
+  projectLinks,
+} from "../lib/diagnostics";
 import { version } from "../../package.json";
 
 type Section =
@@ -19,7 +25,7 @@ const sections: [Section, string][] = [
   ["account", "Account and profile"],
   ["projects", "Projects"],
   ["privacy", "Privacy"],
-  ["audio", "Audio and notifications"],
+  ["audio", "Notifications"],
   ["language", "Language"],
   ["about", "About"],
 ];
@@ -121,6 +127,8 @@ export function LanguageSettings({
     if (confirming) discardDialog.current?.showModal();
     else discardDialog.current?.close();
   }, [confirming]);
+  const [linkError, setLinkError] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"" | "copied" | "failed">("");
   const [saved, setSaved] = useState(true);
   const [changed, setChanged] = useState(false);
   const [section, setSection] = useState<Section>("account");
@@ -222,7 +230,7 @@ export function LanguageSettings({
                     {id === "audio" && (
                       <p>
                         {t(
-                          "Personal volume and notification preferences apply across rooms. Listening and sharing require your action.",
+                          "System notification preferences apply across rooms. Sharing requires your action.",
                         )}
                       </p>
                     )}
@@ -265,13 +273,91 @@ export function LanguageSettings({
                     {id === "about" && (
                       <>
                         <p>
-                          DiGitA {version} · {t("Development pilot")}
+                          DiGitA {version} · {t("Development pilot")} ·
+                          GPL-3.0-only
                         </p>
                         <p>
                           {t(
                             "Git access is read-only. Room activity resets when the server restarts or the last member leaves.",
                           )}
                         </p>
+                        <div className="dashboard-actions">
+                          <a
+                            className="button"
+                            href={projectLinks.help}
+                            onClick={async (event) => {
+                              if (!isTauri()) return;
+                              event.preventDefault();
+                              setLinkError(false);
+                              try {
+                                await openProjectLink("help");
+                              } catch {
+                                setLinkError(true);
+                              }
+                            }}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {t("Help and documentation")}
+                          </a>
+                          <a
+                            className="button"
+                            href={projectLinks.issues}
+                            onClick={async (event) => {
+                              if (!isTauri()) return;
+                              event.preventDefault();
+                              setLinkError(false);
+                              try {
+                                await openProjectLink("issues");
+                              } catch {
+                                setLinkError(true);
+                              }
+                            }}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {t("Report an issue")}
+                          </a>
+                          <button
+                            className="button"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(
+                                  diagnosticSummary({
+                                    desktop: isTauri(),
+                                    language,
+                                  }),
+                                );
+                                setCopyStatus("copied");
+                              } catch {
+                                setCopyStatus("failed");
+                              }
+                            }}
+                          >
+                            {t("Copy diagnostic summary")}
+                          </button>
+                        </div>
+                        <p>
+                          {t(
+                            "The summary includes only app version, runtime and language. It excludes account data, tokens and local paths.",
+                          )}
+                        </p>
+                        {linkError && (
+                          <p role="alert">
+                            {t("Could not open the link. Try again.")}
+                          </p>
+                        )}
+                        {copyStatus && (
+                          <p
+                            role={copyStatus === "copied" ? "status" : "alert"}
+                          >
+                            {t(
+                              copyStatus === "copied"
+                                ? "Diagnostic summary copied."
+                                : "Could not copy the diagnostic summary. Try again.",
+                            )}
+                          </p>
+                        )}
                         {onShowGuide && (
                           <button
                             className="button"

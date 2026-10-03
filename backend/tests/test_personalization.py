@@ -156,7 +156,7 @@ def test_role_changes_refresh_live_identity_and_permissions(client, account):
         assert client.get(f"/teams/{team_id}/invitations", headers=member).status_code == 403
 
 
-def test_live_profile_update_preserves_presence_conflicts_and_playback(client, account):
+def test_live_profile_update_preserves_presence_and_conflicts(client, account):
     _, owner = account()
     user, member = account("member")
     team_id = team(client, owner)
@@ -172,8 +172,6 @@ def test_live_profile_update_preserves_presence_conflicts_and_playback(client, a
             state(first, lambda s: any(m["presence"] for m in s["members"]))
             second.send_json(presence(room_id))
             baseline = state(first, lambda s: bool(s["conflicts"]))
-            first.send_json({"type": "ambient.set", "playing": True})
-            playing = state(first, lambda s: s["ambient"]["playing"])
             client.patch("/auth/me", headers=member, json=PROFILE)
             updated = state(
                 first, lambda s: any(m["display_name"] == "New Name" for m in s["members"])
@@ -183,8 +181,6 @@ def test_live_profile_update_preserves_presence_conflicts_and_playback(client, a
             assert "email" not in live_member
             assert live_member["presence"] == presence(room_id)["presence"]
             assert updated["conflicts"] == baseline["conflicts"]
-            assert updated["ambient"]["playing"]
-            assert updated["ambient"]["revision"] == playing["ambient"]["revision"]
 
 
 @pytest.mark.parametrize("leave_self", [False, True])

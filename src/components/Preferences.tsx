@@ -42,7 +42,7 @@ type PreferencesContextValue = {
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 export const usePreferences = () => useContext(PreferencesContext);
 const loadFailure =
-  "Could not load local preferences. Saved data is preserved. Clear project and audio preferences to allow saving again.";
+  "Could not load local preferences. Saved data is preserved. Clear project and notification preferences to allow saving again.";
 const failure =
   "Could not save local preferences. Changes apply only to this app session. Try saving again.";
 
@@ -220,7 +220,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     if (
       !window.confirm(
         t(
-          "Clear remembered projects, room folders, volume and notification preferences on this device?",
+          "Clear remembered projects, room folders and notification preferences on this device?",
         ),
       )
     )
@@ -232,7 +232,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     try {
       await enqueue(
         () => preferenceStorage.clear(),
-        "Project and audio preferences cleared on this device.",
+        "Project and notification preferences cleared on this device.",
         "Could not clear local preferences. Saved data and current settings were kept. Try again.",
       );
       // Select before resetting so active sharing is withdrawn in the same event.
@@ -403,34 +403,18 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
           disabled={!ready || saving}
           onClick={() => void clear()}
         >
-          {t("Clear project and audio preferences")}
+          {t("Clear project and notification preferences")}
         </button>
         <p>
           {t(
-            "Clearing resets projects, room folders, volume and notifications. Language and sign-in are kept.",
+            "Clearing resets projects, room folders and notifications. Language and sign-in are kept.",
           )}
         </p>
       </SettingsContent>
       <SettingsContent section="audio">
-        <label className="ambient-volume">
-          {t("My volume")}
-          <input
-            type="range"
-            min="0"
-            max="100"
-            disabled={!ready}
-            value={preferences.volume}
-            onChange={(event) =>
-              update((p) => ({ ...p, volume: Number(event.target.value) }))
-            }
-          />
-          <span>{preferences.volume} %</span>
-        </label>
-        <p>
-          {t(
-            "Volume is saved on this device. Listening always starts with your action in the room.",
-          )}
-        </p>
+        {!isTauri() && (
+          <p>{t("System notifications are available in the desktop app.")}</p>
+        )}
         {isTauri() && (
           <button
             className="button"

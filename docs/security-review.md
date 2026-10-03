@@ -128,3 +128,22 @@ Follow-up validation passed: 78 SQLite tests, 78 isolated PostgreSQL 18.6 tests
 (UTF-8), Ruff, and diff checks. A PostgreSQL 17 CI job was added to match Compose;
 the GitHub workflow was not run during that work and is currently paused.
 These historical results do not validate subsequent changes.
+
+## Phase 7 refresh — 2026-10-03
+
+Authorization/revocation regressions passed on isolated SQLite and PostgreSQL18.6.
+Removed audio WebSocket messages are rejected; room state/pong no longer carry
+ambient data. Diagnostics use four allowlisted lines, and native help/issue URLs
+are fixed enums. npm audit and pip-audit reported no known vulnerabilities.
+Source secret candidates were individually reviewed as test fixtures, migration
+IDs, scanner metadata, examples or translated labels; only those hashes were
+added to the baseline. Full Git history was not scanned. Rust cargo-audit is not
+installed and was not run.
+
+A read-only HTTPS /health request to the existing pilot returned 200 with status
+ok, no-store, no-referrer, nosniff and DENY. HSTS was absent from this response;
+this does not verify HTTPS redirects, proxy trust, WS edge limits, database TLS,
+provider MFA/billing/backup/monitoring or deployment of current source. Provider
+accounts/configuration were not accessed. Registration and access were not changed.
+See [Phase 7 evidence](history/validation-0.2.0-phase-7.md) and
+[open release gates](checklist-0.2.0.md).

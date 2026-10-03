@@ -48,7 +48,6 @@ it.each([
     act(() => socket.onclose?.({ code }));
     expect(result.current.status).toBe(status);
     expect(result.current.state).toBeNull();
-    expect(result.current.ambient).toBeNull();
     act(() => vi.advanceTimersByTime(60000));
     expect(Socket.last).toBe(socket);
   },

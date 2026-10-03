@@ -485,41 +485,6 @@
   }
 }
 
-.ambient-player {
-  border: 1px solid #3b3b3b;
-  padding: 22px;
-  margin-bottom: 24px;
-}
-.ambient-heading,
-.ambient-heading h2,
-.ambient-controls,
-.ambient-volume {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.ambient-heading {
-  justify-content: space-between;
-}
-.ambient-heading h2 {
-  font-size: 17px;
-  font-weight: 500;
-}
-.ambient-heading > span,
-.ambient-volume,
-.ambient-controls > .mono {
-  font-size: 12px;
-  color: #aaa;
-}
-.ambient-controls {
-  margin: 16px 0;
-}
-.ambient-volume input {
-  accent-color: #ddd;
-  width: 110px;
-}
-
 .language-settings {
   width: min(440px, calc(100vw - 32px));
   padding: 24px;
@@ -642,6 +607,8 @@
   overflow: auto;
 }
 .settings-screen header {
+  flex-wrap: wrap;
+  gap: 16px;
   border-bottom: 1px solid #383838;
   padding-bottom: 24px;
 }
@@ -686,12 +653,6 @@
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.settings-slot .ambient-volume {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
 }
 .profile-avatar {
   display: grid;

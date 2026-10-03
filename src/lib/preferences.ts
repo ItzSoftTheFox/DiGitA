@@ -4,19 +4,17 @@ export type Project = { path: string; name: string };
 export type RoomScope = { server: string; accountId: string; roomId: string };
 export type RoomProject = RoomScope & { path: string };
 export type LocalPreferences = {
-  version: 1;
+  version: 2;
   recentProjects: Project[];
   activeProjectPath: string | null;
   roomProjects: RoomProject[];
-  volume: number;
   notificationsEnabled: boolean;
 };
 export const defaultPreferences = (): LocalPreferences => ({
-  version: 1,
+  version: 2,
   recentProjects: [],
   activeProjectPath: null,
   roomProjects: [],
-  volume: 25,
   notificationsEnabled: false,
 });
 export const preferencesKey = "digita.preferences.v1";
@@ -49,6 +47,23 @@ export function validatePreferences(value: unknown): LocalPreferences {
   const invalid = () => {
     throw new Error("Invalid local preferences.");
   };
+  // Upgrade only a valid legacy payload; never silently accept extra fields.
+  if (
+    value &&
+    typeof value === "object" &&
+    "version" in value &&
+    value.version === 1
+  ) {
+    const legacy = value as Record<string, unknown>;
+    if (
+      !Number.isInteger(legacy.volume) ||
+      (legacy.volume as number) < 0 ||
+      (legacy.volume as number) > 100
+    )
+      return invalid();
+    const { volume: _removed, ...rest } = legacy;
+    value = { ...rest, version: 2 };
+  }
   if (
     !value ||
     typeof value !== "object" ||
@@ -57,7 +72,6 @@ export function validatePreferences(value: unknown): LocalPreferences {
       "recentProjects",
       "activeProjectPath",
       "roomProjects",
-      "volume",
       "notificationsEnabled",
     ])
   )
@@ -69,14 +83,11 @@ export function validatePreferences(value: unknown): LocalPreferences {
     return invalid();
   const p = value as LocalPreferences;
   if (
-    p.version !== 1 ||
+    p.version !== 2 ||
     !Array.isArray(p.recentProjects) ||
     p.recentProjects.length > 20 ||
     !Array.isArray(p.roomProjects) ||
     p.roomProjects.length > 100 ||
-    !Number.isInteger(p.volume) ||
-    p.volume < 0 ||
-    p.volume > 100 ||
     typeof p.notificationsEnabled !== "boolean"
   )
     return invalid();
@@ -122,7 +133,7 @@ export function validatePreferences(value: unknown): LocalPreferences {
   }
   // Copy only the permitted fields; credentials and consent have no place here.
   return {
-    version: 1,
+    version: 2,
     recentProjects: p.recentProjects.map(({ path, name }) => ({ path, name })),
     activeProjectPath: p.activeProjectPath,
     roomProjects: p.roomProjects.map(({ server, accountId, roomId, path }) => ({
@@ -131,7 +142,6 @@ export function validatePreferences(value: unknown): LocalPreferences {
       roomId,
       path,
     })),
-    volume: p.volume,
     notificationsEnabled: p.notificationsEnabled,
   };
 }

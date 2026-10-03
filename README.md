@@ -4,7 +4,7 @@ DiGitA is a Tauri desktop workspace for local Git activity and team collaboratio
 Team rooms provide online presence and early warnings when people edit the same file. Repository contents stay on your machine; sharing Git
 metadata is opt-in. Local Git browsing works without an account.
 
-The project is a **development pilot**, with Arch Linux x86_64 as the current
+The project is a **0.2.0 release candidate**, with Arch Linux x86_64 as the current
 distribution priority. Settings, first-launch recovery and remembered local
 projects/preferences, team administration, profile editing, sidebar team switching
 and bounded local Git tracking are implemented. Native pilot checks and
@@ -46,7 +46,7 @@ desktop development server separately because both use port 1420.
 | `e2e/`                     | Playwright browser scenarios                           |
 | `website/`                 | Public website source                                  |
 | `docs/`                    | Documentation and published GitHub Pages website       |
-| `scripts/`, `packaging/` | Cleanup, audio generation and release tooling          |
+| `scripts/`, `packaging/` | Cleanup and release tooling          |
 
 Frontend tests live beside the code they verify. The [code map](docs/codebase.md)
 explains the main entry points and data flow.
@@ -76,3 +76,6 @@ and the published website in `docs/`. Stop development servers before cleaning.
 - [Security review and deployment conditions](docs/security-review.md)
 
 ![Local Git workspace](docs/images/workspace.png)
+
+DiGitA uses [GPL-3.0-only](LICENSE). See the [0.2.0 exit checklist](docs/checklist-0.2.0.md)
+for completed checks and remaining native/release gates.

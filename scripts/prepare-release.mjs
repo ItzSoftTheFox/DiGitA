@@ -38,7 +38,7 @@ export function releaseConfig(
     },
     app: {
       security: {
-        csp: `default-src 'self'; connect-src 'self' ipc: http://ipc.localhost ${url.origin} ${url.origin.replace(/^https:/, "wss:")}; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; media-src 'self'; object-src 'none'; base-uri 'self'`,
+        csp: `default-src 'self'; connect-src 'self' ipc: http://ipc.localhost ${url.origin} ${url.origin.replace(/^https:/, "wss:")}; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; media-src 'none'; object-src 'none'; base-uri 'self'`,
       },
     },
   };

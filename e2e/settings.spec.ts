@@ -23,7 +23,7 @@ test("Settings supports keyboard return, small windows, and local work", async (
     "Account and profile",
     "Projects",
     "Privacy",
-    "Audio and notifications",
+    "Notifications",
     "Language",
     "About",
   ]) {
@@ -95,4 +95,68 @@ test("creation drafts survive Settings and errors, and navigation confirms disca
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0);
+});
+
+test("About diagnostics exclude sensitive data and links stay fixed", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("digita.intro.seen", "yes");
+    localStorage.setItem(
+      "private-test-marker",
+      "/private/project user@example.com bearer-token",
+    );
+    const native = window as unknown as { copiedSummary: string };
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (value: string) => {
+          native.copiedSummary = value;
+        },
+      },
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "About", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("DiGitA 0.2.0");
+  await expect(dialog).toContainText("GPL-3.0-only");
+  await expect(
+    dialog.getByRole("link", { name: "Help and documentation" }),
+  ).toHaveAttribute("href", "https://github.com/ItzSoftTheFox/DiGitA#readme");
+  await expect(
+    dialog.getByRole("link", { name: "Report an issue" }),
+  ).toHaveAttribute(
+    "href",
+    "https://github.com/ItzSoftTheFox/DiGitA/issues/new",
+  );
+  await dialog.getByRole("button", { name: "Copy diagnostic summary" }).click();
+  await expect(dialog.getByRole("status")).toContainText(
+    "Diagnostic summary copied.",
+  );
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { copiedSummary: string }).copiedSummary,
+    ),
+  ).toBe("DiGitA diagnostics\nVersion: 0.2.0\nRuntime: browser\nLanguage: en");
+  await page.getByRole("button", { name: "Language", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Language", exact: true })
+    .selectOption("cs");
+  await page.getByRole("button", { name: "O aplikaci", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Kopírovat diagnostický souhrn" })
+    .click();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { copiedSummary: string }).copiedSummary,
+    ),
+  ).toBe("DiGitA diagnostics\nVersion: 0.2.0\nRuntime: browser\nLanguage: cs");
+  await page.setViewportSize({ width: 800, height: 600 });
+  await page.screenshot({
+    path: "artifacts/about-small-cs.png",
+    fullPage: true,
+    animations: "disabled",
+  });
 });

@@ -9,7 +9,6 @@ import {
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PreferencesProvider, usePreferences } from "./Preferences";
 import { defaultPreferences, type LocalPreferences } from "../lib/preferences";
-import { AmbientPlayer } from "./AmbientPlayer";
 import App from "../App";
 import { demoRepository } from "../lib/repository";
 const mocks = vi.hoisted(() => ({
@@ -56,7 +55,6 @@ const scope = {
 };
 const saved: LocalPreferences = {
   ...defaultPreferences(),
-  volume: 42,
   notificationsEnabled: true,
   recentProjects: [
     { path: "/first", name: "First" },
@@ -68,38 +66,41 @@ const saved: LocalPreferences = {
 function SessionEditor() {
   const context = usePreferences()!;
   return (
-    <button onClick={() => context.update((p) => ({ ...p, volume: 99 }))}>
-      Change during clear
-    </button>
+    <input
+      aria-label="Project name"
+      disabled={!context.ready}
+      value={context.preferences.recentProjects[0]?.name ?? ""}
+      onChange={(event) =>
+        context.update((p) => ({
+          ...p,
+          recentProjects: [
+            { path: "/first", name: event.target.value },
+            ...p.recentProjects.filter((project) => project.path !== "/first"),
+          ],
+        }))
+      }
+    />
   );
 }
-it("restores volume and notification intent without listening or requesting permission", async () => {
+function editName(name: string) {
+  fireEvent.change(screen.getByRole("textbox", { name: "Project name" }), {
+    target: { value: name },
+  });
+}
+it("restores notification intent without playing audio or requesting permission", async () => {
   mocks.load.mockResolvedValue(saved);
-  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
   const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
   const view = render(
     <PreferencesProvider>
-      <AmbientPlayer
-        state={{
-          track: "soft-noise-v1",
-          duration_ms: 30000,
-          playing: true,
-          position_ms: 0,
-          revision: 1,
-          receivedAt: performance.now(),
-        }}
-        onPlaying={() => true}
-      />
+      <div />
     </PreferencesProvider>,
   );
-  await waitFor(() =>
-    expect(screen.getByRole("slider")).toHaveProperty("value", "42"),
-  );
-  expect(view.container.querySelector("audio")!.volume).toBe(0.42);
+  await screen.findByText(/Notifications were remembered/);
+  expect(view.container.querySelector("audio")).toBeNull();
+  expect(screen.queryByRole("slider")).toBeNull();
   expect(play).not.toHaveBeenCalled();
   expect(mocks.permission).not.toHaveBeenCalled();
   expect(mocks.save).not.toHaveBeenCalled();
-  expect(screen.getByText(/Notifications were remembered/)).toBeTruthy();
   fireEvent.click(
     screen.getByRole("button", { name: "Enable system notifications" }),
   );
@@ -112,23 +113,25 @@ it("retains session changes after a save failure and retries them explicitly", a
     .mockResolvedValue(undefined);
   render(
     <PreferencesProvider>
-      <div />
+      <SessionEditor />
     </PreferencesProvider>,
   );
   await waitFor(() =>
-    expect(screen.getByRole("slider")).toHaveProperty("disabled", false),
+    expect(screen.getByRole("textbox")).toHaveProperty("disabled", false),
   );
-  fireEvent.change(screen.getByRole("slider"), { target: { value: "67" } });
+  editName("Renamed");
   expect((await screen.findByRole("alert")).textContent).toContain(
     "Could not save local preferences",
   );
-  expect(screen.getByRole("slider")).toHaveProperty("value", "67");
+  expect(screen.getByRole("textbox")).toHaveProperty("value", "Renamed");
   fireEvent.click(
     screen.getByRole("button", { name: "Retry saving preferences" }),
   );
   await screen.findByText("Preferences saved on this device.");
   expect(mocks.save).toHaveBeenLastCalledWith(
-    expect.objectContaining({ volume: 67 }),
+    expect.objectContaining({
+      recentProjects: [{ path: "/first", name: "Renamed" }],
+    }),
   );
 });
 it("does not overwrite unreadable storage until a successful explicit clear", async () => {
@@ -138,31 +141,40 @@ it("does not overwrite unreadable storage until a successful explicit clear", as
     .mockResolvedValue(undefined);
   render(
     <PreferencesProvider>
-      <div />
+      <SessionEditor />
     </PreferencesProvider>,
   );
   await screen.findByText(/Could not load local preferences/);
-  fireEvent.change(screen.getByRole("slider"), { target: { value: "67" } });
+  editName("Session project");
   expect(mocks.save).not.toHaveBeenCalled();
   fireEvent.click(
-    screen.getByRole("button", { name: "Clear project and audio preferences" }),
+    screen.getByRole("button", {
+      name: "Clear project and notification preferences",
+    }),
   );
   expect((await screen.findByRole("alert")).textContent).toContain(
     "Could not clear local preferences",
   );
-  expect(screen.getByRole("slider")).toHaveProperty("value", "67");
+  expect(screen.getByRole("textbox")).toHaveProperty(
+    "value",
+    "Session project",
+  );
   fireEvent.click(
-    screen.getByRole("button", { name: "Clear project and audio preferences" }),
+    screen.getByRole("button", {
+      name: "Clear project and notification preferences",
+    }),
   );
   await screen.findByText(
-    "Project and audio preferences cleared on this device.",
+    "Project and notification preferences cleared on this device.",
   );
-  expect(screen.getByRole("slider")).toHaveProperty("value", "25");
+  expect(screen.getByRole("textbox")).toHaveProperty("value", "");
   expect(mocks.save).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByRole("slider"), { target: { value: "31" } });
+  editName("Saved project");
   await waitFor(() =>
     expect(mocks.save).toHaveBeenCalledWith(
-      expect.objectContaining({ volume: 31 }),
+      expect.objectContaining({
+        recentProjects: [{ path: "/first", name: "Saved project" }],
+      }),
     ),
   );
 });
@@ -181,16 +193,17 @@ it("locks updates while clear is pending so old preferences cannot be restored",
     </PreferencesProvider>,
   );
   await waitFor(() =>
-    expect(screen.getByRole("slider")).toHaveProperty("value", "42"),
+    expect(screen.getByRole("textbox")).toHaveProperty("value", "First"),
   );
   fireEvent.click(
-    screen.getByRole("button", { name: "Clear project and audio preferences" }),
+    screen.getByRole("button", {
+      name: "Clear project and notification preferences",
+    }),
   );
   await waitFor(() => expect(mocks.clear).toHaveBeenCalledOnce());
-  fireEvent.click(screen.getByRole("button", { name: "Change during clear" }));
-  fireEvent.change(screen.getByRole("slider"), { target: { value: "90" } });
+  editName("Must not return");
   await act(async () => finish());
-  expect(screen.getByRole("slider")).toHaveProperty("value", "25");
+  expect(screen.getByRole("textbox")).toHaveProperty("value", "");
   expect(screen.getByText("No remembered repositories yet.")).toBeTruthy();
   expect(mocks.save).not.toHaveBeenCalled();
 });
@@ -206,17 +219,20 @@ it("serializes saves so the newest value is persisted last", async () => {
     .mockResolvedValue(undefined);
   render(
     <PreferencesProvider>
-      <div />
+      <SessionEditor />
     </PreferencesProvider>,
   );
   await waitFor(() =>
-    expect(screen.getByRole("slider")).toHaveProperty("disabled", false),
+    expect(screen.getByRole("textbox")).toHaveProperty("disabled", false),
   );
-  fireEvent.change(screen.getByRole("slider"), { target: { value: "40" } });
-  fireEvent.change(screen.getByRole("slider"), { target: { value: "41" } });
+  editName("Older");
+  editName("Newest");
   await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
   await act(async () => finish());
-  expect(mocks.save.mock.calls.map(([p]) => p.volume)).toEqual([40, 41]);
+  expect(mocks.save.mock.calls.map(([p]) => p.recentProjects[0].name)).toEqual([
+    "Older",
+    "Newest",
+  ]);
 });
 it("restores room associations only for the matching scope and repairs missing folders", async () => {
   mocks.load.mockResolvedValue(saved);
@@ -315,7 +331,9 @@ it("never inspects saved real repositories in the browser demo", async () => {
     </PreferencesProvider>,
   );
   await waitFor(() =>
-    expect(screen.getByRole("slider")).toHaveProperty("value", "42"),
+    expect(
+      screen.getByRole("button", { name: "Remove First from recent projects" }),
+    ).toBeTruthy(),
   );
   expect(mocks.invoke).not.toHaveBeenCalled();
   expect(
@@ -342,17 +360,21 @@ it("discards a late permission grant after preferences were cleared", async () =
     </PreferencesProvider>,
   );
   await waitFor(() =>
-    expect(screen.getByRole("slider")).toHaveProperty("disabled", false),
+    expect(
+      screen.getByRole("button", { name: "Enable system notifications" }),
+    ).toHaveProperty("disabled", false),
   );
   fireEvent.click(
     screen.getByRole("button", { name: "Enable system notifications" }),
   );
   await waitFor(() => expect(mocks.permission).toHaveBeenCalledOnce());
   fireEvent.click(
-    screen.getByRole("button", { name: "Clear project and audio preferences" }),
+    screen.getByRole("button", {
+      name: "Clear project and notification preferences",
+    }),
   );
   await screen.findByText(
-    "Project and audio preferences cleared on this device.",
+    "Project and notification preferences cleared on this device.",
   );
   await act(async () => grant("granted"));
   expect(mocks.save).not.toHaveBeenCalled();
@@ -409,7 +431,9 @@ it("discards a Settings folder picker result after the workspace scope changes",
     </PreferencesProvider>,
   );
   await waitFor(() =>
-    expect(screen.getByRole("slider")).toHaveProperty("disabled", false),
+    expect(
+      screen.getByRole("button", { name: "Enable system notifications" }),
+    ).toHaveProperty("disabled", false),
   );
   fireEvent.click(screen.getAllByRole("button", { name: "Choose folder" })[1]);
   view.rerender(
@@ -435,7 +459,9 @@ it("discards a workspace picker result after that workspace unmounts", async () 
     </PreferencesProvider>,
   );
   await waitFor(() =>
-    expect(screen.getByRole("slider")).toHaveProperty("disabled", false),
+    expect(
+      screen.getByRole("button", { name: "Enable system notifications" }),
+    ).toHaveProperty("disabled", false),
   );
   fireEvent.click(screen.getByRole("button", { name: "Connect repository" }));
   view.rerender(

@@ -16,6 +16,7 @@ mkdir -p artifacts/arch
 output_dir="$PWD/artifacts/arch"
 stage=$(mktemp -d "$PWD/artifacts/arch/stage.XXXXXX")
 cp packaging/arch/PKGBUILD "$stage/"
+cp LICENSE "$stage/"
 cp packaging/arch/app.digita.desktop.desktop "$stage/"
 cp src-tauri/icons/128x128.png "$stage/digita.png"
 cp "$CARGO_TARGET_DIR/release/digita" "$stage/digita"
@@ -25,13 +26,14 @@ from pathlib import Path
 import sys
 stage = Path(sys.argv[1])
 p = stage / 'PKGBUILD'
-text = p.read_text().replace('pkgver=0.1.0', 'pkgver=' + sys.argv[2])
-names = ['digita', 'app.digita.desktop.desktop', 'digita.png']
+import re
+text = re.sub(r'^pkgver=.*$', 'pkgver=' + sys.argv[2], p.read_text(), flags=re.MULTILINE)
+names = ['digita', 'app.digita.desktop.desktop', 'digita.png', 'LICENSE']
 hashes = []
 for name in names:
     with (stage / name).open('rb') as stream:
         hashes.append(hashlib.file_digest(stream, 'sha256').hexdigest())
-text = text.replace("sha256sums=('SKIP' 'SKIP' 'SKIP')", 'sha256sums=(' + ' '.join(repr(h) for h in hashes) + ')')
+text = text.replace("sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')", 'sha256sums=(' + ' '.join(repr(h) for h in hashes) + ')')
 p.write_text(text)
 PY
 (

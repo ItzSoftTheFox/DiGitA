@@ -45,6 +45,20 @@ test("English website works under the Pages path at desktop and mobile sizes", a
   await expect(
     page.getByRole("link", { name: "Download DiGitA" }),
   ).toBeVisible();
+  await expect(page.locator(".package-meta")).toContainText("v0.2.0");
+  await expect(
+    page.getByRole("link", { name: "Download DiGitA" }),
+  ).toHaveAttribute("href", "./downloads/digita-0.2.0-1-x86_64.pkg.tar.zst");
+  await expect(page.getByRole("link", { name: "SHA-256" })).toHaveAttribute(
+    "href",
+    "./downloads/digita-0.2.0-1-x86_64.pkg.tar.zst.sha256",
+  );
+  await expect(page.locator(".download-note")).toContainText(
+    "clean installation, upgrade and uninstall have not been verified",
+  );
+  await expect(page.getByText(/shared ambient track|your volume/)).toHaveCount(
+    0,
+  );
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     expect(

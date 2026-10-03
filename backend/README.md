@@ -1,7 +1,7 @@
 # DiGitA API — desktop pilot
 
 FastAPI service for accounts, teams, membership roles, rooms, invitation codes,
-live Git presence, Conflict Radar, and shared ambient playback. The desktop now connects through HTTP and WebSocket.
+live Git presence and Conflict Radar. The desktop now connects through HTTP and WebSocket.
 
 ## Run locally
 
@@ -68,7 +68,7 @@ Registration and `GET /auth/me` include these profile fields. Existing accounts
 receive the defaults when the account-personalization migration is applied.
 Member responses include the same profile fields without email. Profile updates
 broadcast immediately to existing live rooms while preserving metadata sharing,
-presence, conflicts and ambient state. Historical timeline names remain as
+presence and conflicts. Historical timeline names remain as
 recorded when their events occurred.
 
 ## Permissions
@@ -79,7 +79,7 @@ There is no separate room membership or private-room policy in the current proto
 | Action                                                          | Owner | Admin | Member |
 | --------------------------------------------------------------- | ----- | ----- | ------ |
 | Read team members and rooms                                     | Yes   | Yes   | Yes    |
-| Join live rooms, share Git metadata, control ambient play/pause | Yes   | Yes   | Yes    |
+| Join live rooms and share Git metadata                          | Yes   | Yes   | Yes    |
 | Create rooms and invitations; revoke invitations                | Yes   | Yes   | No     |
 | Set another member's role to admin/member                       | Yes   | No    | No     |
 | Remove another member                                           | Yes   | No    | No     |
@@ -157,7 +157,7 @@ URL or local folder name is used as a shared identity.
 
 The server sends `room.state` snapshots with online members (`user_id`,
 `display_name`, `avatar`, `avatar_color`, `custom_status`, `role`, `presence`) and the most recent
-100 generic timeline events, current conflicts, and ambient playback state. New connections receive the complete current state.
+100 generic timeline events and current conflicts. New connections receive the complete current state.
 The client resends its current permitted presence after reconnecting. A `ping`
 message every 15 seconds receives `pong`; unresponsive clients are disconnected
 after roughly 40–50 seconds. Expired sessions and removed members are checked on
@@ -166,7 +166,7 @@ incoming messages, before broadcasts, and during idle connection checks.
 Limits: one backend process, 32 online users per room, one active connection per
 user in each room, 1000 active rooms, eight inbound messages per second, and 64 KiB
 inbound messages. Reopening the same room for the same account replaces the older
-connection. Presence, conflicts, ambient playback, and timeline are ephemeral: after the last member leaves or
+connection. Presence, conflicts, and timeline are ephemeral: after the last member leaves or
 the process restarts, they are discarded. A new persistent timeline and shared
 connection state would be needed before multiple server workers can be used.
 
@@ -197,25 +197,12 @@ This throttles timeline bursts without delaying updates to the live warning list
 The client independently batches optional native notifications and never sends
 file names to the OS notification history.
 
-## Ambient playback
+## Live protocol compatibility
 
-`room.state.ambient` and heartbeat `pong.ambient` contain `track` (fixed to
-`soft-noise-v1`), `duration_ms` (30000), `playing`, `position_ms`, and `revision`.
-Positions are sampled using a server monotonic clock; clients use elapsed time
-since receipt rather than comparing operating-system wall clocks.
-
-Authenticated room members send `{"type":"ambient.set","playing":true}` (or
-`false`). Additional fields, arbitrary tracks/URLs, positions, and non-boolean
-values are rejected. Membership/session validation runs before commands.
-The room lock serializes commands; each accepted transition increments revision
-and adds `ambient.started`/`ambient.paused` to the bounded timeline. Repeated
-states are idempotent; transitions within 500 ms of the preceding accepted
-transition are ignored and the current state is broadcast back. The existing
-8 messages/second per connection limit also applies.
-
-Audio is bundled with the client. Personal listening/volume never reaches the
-server. Playback state is isolated per room, kept in memory, and discarded when
-the room empties or the backend restarts. No database migration is needed.
+Background music is removed in 0.2.0. Room state contains members, events and
+conflicts; heartbeat replies are exactly `{"type":"pong"}`. Legacy
+`ambient.set` messages are unsupported and close the connection with code 1008.
+System notifications remain local and optional. No database migration is needed.
 
 ## Tests and migrations
 
@@ -248,10 +235,11 @@ test database.
 Tests cover account validation, secret storage, session expiry/logout, team
 isolation, role changes, removal, invitation expiry/revocation, concurrent
 single-use acceptance, rate limits, migration/schema consistency, live metadata
-privacy and revocation, conflict lifecycle, and ambient clock/control isolation.
-The historical Phase 5 run passed 45 tests on SQLite; the last PostgreSQL run was
-the 39-test Phase 4 suite. See the [development guide](../docs/development.md) for validation
-history and the Windows VM/SSH setup.
+privacy and revocation, conflict lifecycle, and removed-audio protocol rejection.
+The Phase 7 local run on 2026-10-03 passed 119 tests separately on SQLite and
+isolated PostgreSQL 18.6, including migration/schema and authorization checks.
+See the [development guide](../docs/development.md) for validation history and
+the Windows VM/SSH setup.
 
 To change the schema, edit the models and run `uv run alembic revision
 --autogenerate -m "describe change"`. Review the generated migration, then run

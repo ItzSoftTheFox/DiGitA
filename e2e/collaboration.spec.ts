@@ -188,7 +188,7 @@ test("two accounts create a room, share private-by-default Git presence and reco
     await expect(radarToggle).toBeFocused();
     await member.getByRole("button", { name: "Settings", exact: true }).click();
     await member
-      .getByRole("button", { name: "Audio and notifications", exact: true })
+      .getByRole("button", { name: "Notifications", exact: true })
       .click();
     await member
       .getByRole("button", { name: "Enable system notifications" })

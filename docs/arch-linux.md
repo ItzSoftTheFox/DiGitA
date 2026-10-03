@@ -25,8 +25,8 @@ Set `VITE_API_URL` before running the script to select a different backend.
 Output for the current version:
 
 ```text
-artifacts/arch/digita-0.1.0-1-x86_64.pkg.tar.zst
-artifacts/arch/digita-0.1.0-1-x86_64.pkg.tar.zst.sha256
+artifacts/arch/digita-0.2.0-1-x86_64.pkg.tar.zst
+artifacts/arch/digita-0.2.0-1-x86_64.pkg.tar.zst.sha256
 ```
 
 `artifacts/arch/stage.*` contains intermediate build directories, not repository
@@ -38,7 +38,7 @@ by the script; it is not a ready-to-use AUR recipe.
 From the repository root:
 
 ```sh
-sudo pacman -U artifacts/arch/digita-0.1.0-1-x86_64.pkg.tar.zst
+sudo pacman -U artifacts/arch/digita-0.2.0-1-x86_64.pkg.tar.zst
 digita
 ```
 
@@ -50,13 +50,13 @@ Remembering sign-in requires an unlocked Secret Service keyring, such as GNOME
 Keyring, in the desktop session. Otherwise, use an in-memory session for the
 current launch. Installing the package does not configure a keyring.
 New builds default to English; select Czech in **Settings → Language**.
-The existing downloadable v0.1.0 archive predates this language setting.
+The 0.2.0 candidate includes the English-default interface and Czech settings.
 
 The package targets current Arch x86_64. Older libraries and other distributions
 are not verified. It is not signed with a distribution key. SHA-256 verifies
 file consistency, not publisher identity.
 Before publication, validate installation, startup, sign-in, native Git selection,
-two-client collaboration, and audio on a desktop.
+two-client collaboration, keyring and system notifications on a desktop.
 
 ## Distributing the package
 
@@ -67,3 +67,12 @@ AppImage remain deferred.
 
 References: [Arch makepkg](https://man.archlinux.org/man/makepkg.8),
 [Tauri distribution for Arch](https://v2.tauri.app/distribute/aur/).
+
+The 0.2.0 candidate is licensed under [GPL-3.0-only](../LICENSE). Its LICENSE
+is installed in `/usr/share/licenses/digita/`. This tree prepares matching download
+and checksum files locally; publishing requires final native checks and matching
+source. See the [exit checklist](checklist-0.2.0.md).
+
+Isolated pacman install/upgrade/uninstall transactions passed on 2026-10-03, with
+dependency resolution and install scripts disabled. These tests do not validate
+a clean graphical Arch runtime; see the Phase 7 evidence for exact limits.

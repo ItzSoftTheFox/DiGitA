@@ -33,13 +33,6 @@ function state(conflicts: RoomState["conflicts"] = []): RoomState {
   return {
     type: "room.state",
     room_id: "room",
-    ambient: {
-      track: "soft-noise-v1",
-      duration_ms: 30000,
-      playing: false,
-      position_ms: 0,
-      revision: 0,
-    },
     conflicts,
     events: [],
     members: [

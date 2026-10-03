@@ -73,7 +73,7 @@ forwarded headers and may rate-limit multiple users behind the same proxy togeth
 Verify actual client IP separation and spoofed-header rejection on staging; do not
 copy an unverified proxy range. Additional edge/WS connection limits remain pending.
 
-Render Free sleeps after idle periods and may restart; room presence/timeline/audio
+Render Free sleeps after idle periods and may restart; room presence/timeline
 state is ephemeral. Stored accounts/teams remain in Neon. Check current plan limits
 and billing settings before use. The blueprint intentionally creates no Render DB.
 
@@ -95,7 +95,7 @@ Local Windows equivalent (PowerShell):
 
 ```powershell
 $env:VITE_API_URL = "https://YOUR-API-HOST"
-$env:RELEASE_TAG = "v0.1.0"
+$env:RELEASE_TAG = "v0.2.0"
 npm ci
 node scripts/prepare-release.mjs
 npm run tauri -- build --config src-tauri/tauri.release.generated.json -- --locked
@@ -147,3 +147,8 @@ If deployment logs show IPv4 `certificate verify failed` followed by IPv6
 `Network is unreachable`, resolve the certificate failure first: IPv4 already
 reached the endpoint. Deploy the CA-bundle fix rather than disabling TLS validation.
 See [libpq TLS verification](https://www.postgresql.org/docs/17/libpq-connect.html#LIBPQ-CONNECT-SSLROOTCERT).
+
+The 0.2.0 candidate uses GPL-3.0-only. Publish the exact corresponding source
+with any distributed binary; a link to an older main branch is insufficient.
+Local builds and prepared Pages files do not establish deployment or release
+approval. See the [exit checklist](checklist-0.2.0.md).

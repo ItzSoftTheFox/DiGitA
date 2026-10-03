@@ -73,7 +73,7 @@ it("uses native commands with the confirmed schema", async () => {
   ]);
 });
 it.each([
-  { ...saved(), version: 2 },
+  { ...saved(), version: 3 },
   { ...saved(), sharing: true },
   { ...saved(), token: "secret" },
   { ...saved(), listening: true },
@@ -132,4 +132,15 @@ it("preserves corrupt browser data and surfaces storage failures", async () => {
     throw new Error("denied");
   });
   await expect(preferenceStorage.clear()).rejects.toThrow("denied");
+});
+
+it("migrates validated v1 preferences without restoring volume or losing projects", async () => {
+  const legacy = { ...saved(), version: 1, volume: 42 };
+  localStorage.setItem(preferencesKey, JSON.stringify(legacy));
+  expect(await preferenceStorage.load()).toEqual(saved());
+  expect(validatePreferences(legacy)).not.toHaveProperty("volume");
+  for (const volume of [-1, 101, 1.5, "42", undefined]) {
+    expect(() => validatePreferences({ ...legacy, volume })).toThrow();
+  }
+  expect(() => validatePreferences({ ...legacy, token: "secret" })).toThrow();
 });

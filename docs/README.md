@@ -27,6 +27,9 @@ later source changes.
 - [0.2.0 phase 5: team administration and account personalization](history/validation-0.2.0-phase-5.md)
 - [0.2.0 phase 6 and follow-up: local Git, sidebar and owner team deletion](history/validation-0.2.0-phase-6.md)
 
+- [0.2.0 phase 7: cleanup, diagnostics, Arch candidate and security checks](history/validation-0.2.0-phase-7.md)
+- [0.2.0 exit checklist and manual release gates](checklist-0.2.0.md)
+
 ## Website files
 
 `index.html`, `assets/`, `images/`, `downloads/`, and `.nojekyll` are used by the

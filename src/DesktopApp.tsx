@@ -1054,8 +1054,6 @@ function Dashboard({
 }
 
 const eventLabels: Record<string, string> = {
-  "ambient.started": "started ambient playback",
-  "ambient.paused": "paused ambient playback",
   "presence.joined": "joined the room",
   "presence.left": "left the room",
   "git.connected": "started sharing Git status",

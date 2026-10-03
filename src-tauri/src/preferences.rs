@@ -1,4 +1,4 @@
-//! Local-only preferences. Credentials, consent and listening state never belong here.
+//! Local-only preferences. Credentials and consent never belong here.
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
     collections::HashSet,
@@ -23,7 +23,6 @@ pub struct LocalPreferences {
     #[serde(deserialize_with = "required_nullable_path")]
     active_project_path: Option<String>,
     room_projects: Vec<RoomProject>,
-    volume: u8,
     notifications_enabled: bool,
 }
 
@@ -55,16 +54,13 @@ fn valid_text(value: &str, max_bytes: usize) -> bool {
 
 impl LocalPreferences {
     fn validate(&self) -> Result<(), String> {
-        if self.version != 1 {
+        if self.version != 2 {
             return Err("Unsupported local preferences version.".into());
         }
         if self.recent_projects.len() > MAX_RECENT_PROJECTS
             || self.room_projects.len() > MAX_ROOM_PROJECTS
         {
             return Err("Too many saved projects or room associations.".into());
-        }
-        if self.volume > 100 {
-            return Err("Volume must be an integer between 0 and 100.".into());
         }
         let mut paths = HashSet::new();
         for project in &self.recent_projects {
@@ -132,9 +128,19 @@ fn load_from(path: &Path) -> Result<Option<LocalPreferences>, String> {
     if bytes.len() as u64 > MAX_FILE_BYTES {
         return Err("Local preferences are too large. Clear them in Settings to reset.".into());
     }
-    let preferences: LocalPreferences = serde_json::from_slice(&bytes).map_err(|_| {
-        "Local preferences are damaged. Clear them in Settings to reset.".to_string()
-    })?;
+    let damaged = || "Local preferences are damaged. Clear them in Settings to reset.".to_string();
+    let mut value: serde_json::Value = serde_json::from_slice(&bytes).map_err(|_| damaged())?;
+    if value.get("version").and_then(serde_json::Value::as_u64) == Some(1) {
+        // Accept only the bounded legacy volume field; all other fields remain strict.
+        let volume = value.get("volume").and_then(serde_json::Value::as_u64);
+        if !volume.is_some_and(|volume| volume <= 100) {
+            return Err(damaged());
+        }
+        let object = value.as_object_mut().ok_or_else(damaged)?;
+        object.remove("volume");
+        object.insert("version".into(), serde_json::json!(2));
+    }
+    let preferences: LocalPreferences = serde_json::from_value(value).map_err(|_| damaged())?;
     preferences.validate()?;
     Ok(Some(preferences))
 }
@@ -228,7 +234,7 @@ mod tests {
 
     fn preferences() -> LocalPreferences {
         LocalPreferences {
-            version: 1,
+            version: 2,
             recent_projects: vec![RecentProject {
                 path: "/missing/local/repository".into(),
                 name: "Repository".into(),
@@ -240,7 +246,6 @@ mod tests {
                 room_id: "room-1".into(),
                 path: "/missing/local/repository".into(),
             }],
-            volume: 25,
             notifications_enabled: false,
         }
     }
@@ -253,11 +258,49 @@ mod tests {
         let mut saved = preferences();
         save_to(&path, &saved).unwrap();
         assert_eq!(load_from(&path).unwrap(), Some(saved.clone()));
-        saved.volume = 80;
         saved.notifications_enabled = true;
         save_to(&path, &saved).unwrap();
         assert_eq!(load_from(&path).unwrap(), Some(saved));
         assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn legacy_volume_is_validated_and_removed_without_losing_projects_or_notifications() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("preferences.json");
+        let mut saved = preferences();
+        saved.notifications_enabled = true;
+        let mut legacy = serde_json::to_value(&saved).unwrap();
+        legacy["version"] = serde_json::json!(1);
+        legacy["volume"] = serde_json::json!(25);
+        fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+        let migrated = load_from(&path).unwrap().unwrap();
+        assert_eq!(migrated, saved);
+        save_to(&path, &migrated).unwrap();
+        let written: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(written["version"], 2);
+        assert!(written.get("volume").is_none());
+        for invalid_volume in [
+            serde_json::json!(-1),
+            serde_json::json!(101),
+            serde_json::json!(12.5),
+            serde_json::json!(true),
+            serde_json::json!(null),
+        ] {
+            legacy["volume"] = invalid_volume;
+            fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+            assert!(load_from(&path).is_err());
+        }
+        legacy.as_object_mut().unwrap().remove("volume");
+        fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+        assert!(load_from(&path).is_err());
+        legacy["volume"] = serde_json::json!(25);
+        legacy["sharingEnabled"] = serde_json::json!(true);
+        fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+        assert!(load_from(&path).is_err());
+        let mut current = serde_json::to_value(saved).unwrap();
+        current["volume"] = serde_json::json!(25);
+        assert!(serde_json::from_value::<LocalPreferences>(current).is_err());
     }
 
     #[test]
@@ -268,7 +311,7 @@ mod tests {
         assert!(load_from(&path).unwrap_err().contains("damaged"));
         assert_eq!(fs::read(&path).unwrap(), b"{broken");
         let mut future = serde_json::to_value(preferences()).unwrap();
-        future["version"] = serde_json::json!(2);
+        future["version"] = serde_json::json!(3);
         fs::write(&path, serde_json::to_vec(&future).unwrap()).unwrap();
         assert!(load_from(&path).unwrap_err().contains("version"));
         clear_at(&path).unwrap();
@@ -284,7 +327,6 @@ mod tests {
             "recentProjects",
             "activeProjectPath",
             "roomProjects",
-            "volume",
             "notificationsEnabled",
         ] {
             let mut invalid = value.clone();
@@ -316,7 +358,7 @@ mod tests {
         let saved = preferences();
         save_to(&path, &saved).unwrap();
         let mut invalid = saved.clone();
-        invalid.volume = 101;
+        invalid.version = 3;
         assert!(save_to(&path, &invalid).is_err());
         assert_eq!(load_from(&path).unwrap(), Some(saved.clone()));
         invalid = saved.clone();
@@ -420,7 +462,7 @@ mod tests {
         fs::write(&path, vec![b' '; MAX_FILE_BYTES as usize + 1]).unwrap();
         assert!(load_from(&path).unwrap_err().contains("too large"));
         let mut value = serde_json::to_value(preferences()).unwrap();
-        value["volume"] = serde_json::json!(12.5);
+        value["notificationsEnabled"] = serde_json::json!(12.5);
         fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
         assert!(load_from(&path).is_err());
     }

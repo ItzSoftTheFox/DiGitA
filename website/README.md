@@ -39,20 +39,18 @@ Reference: [GitHub Pages publishing source](https://docs.github.com/en/pages/get
 
 ## Downloads
 
-The v0.1.0 Arch x86_64 pilot package and SHA-256 are stored in `docs/downloads/`.
-The archive is about 4.2 MiB; the site does not depend on an unpublished release
-asset. It is unsigned and has not been tested on a clean installation. The site
-labels it as a development pilot. See the [installation guide](../docs/arch-linux.md).
+The 0.2.0 Arch x86_64 candidate and SHA-256 are prepared in `docs/downloads/`;
+the previous 0.1.0 archive is preserved. The site derives the package filename,
+version and size from root metadata and verifies the checksum at build time.
+It labels the candidate unsigned and clean-environment installation unverified.
+See the [installation guide](../docs/arch-linux.md).
 
-When releasing a new version, replace the archive and checksum, update the name
-and version in `website/index.html` and `website/build.mjs`, and rebuild.
-For regular releases, move binaries to public GitHub Releases after their assets
-are published and link the exact URLs. Binaries in the branch are a temporary
-way to distribute the first pilot.
-
-Windows and macOS are marked as planned, with no nonfunctional download links.
-The existing v0.1.0 archive predates the English-default UI; source changes do
-not update that binary. Rebuild and validate a package before replacing it.
+Build and validate the new package, copy it and its checksum plus the exact application source archive/checksum into
+`docs/downloads/`,
+then rebuild the website. Preparing these files locally does not publish them.
+GPL-3.0-only distribution requires publishing the exact corresponding source;
+confirm this before pushing website downloads. Regular releases should use exact
+public GitHub Release asset links. Windows/macOS remain planned.
 
 ## Browser verification
 
