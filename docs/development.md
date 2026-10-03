@@ -470,10 +470,10 @@ The MVP does not include a code editor, shared terminal, live collaborative edit
 
 ## Licensing
 
-DiGitA is licensed under [GPL-3.0-only](../LICENSE), selected by the project owner
-on 2026-10-03. Distributed binaries must have matching corresponding source.
+DiGitA is licensed under [MIT](../LICENSE), selected by the project owner
+on 2026-10-03. Include the copyright and license notice with distributed copies.
 Third-party dependencies retain their own licenses. The package includes LICENSE;
-public distribution requires publishing the exact source used to build it.
+the application source archive remains available as a convenience.
 
 ## Known limitations
 
@@ -583,6 +583,6 @@ The website and documentation remain in English.
 Source changes do not replace an already built installer. The downloadable
 v0.1.0 archive still contains the earlier UI until a new package is validated.
 
-Settings → About shows the package version and GPL license, opens fixed help/issue
+Settings → About shows the package version and MIT license, opens fixed help/issue
 links and copies only version, browser/desktop runtime and language. It never
 serializes account, repository, error or session objects.

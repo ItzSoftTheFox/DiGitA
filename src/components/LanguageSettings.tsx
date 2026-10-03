@@ -274,7 +274,7 @@ export function LanguageSettings({
                       <>
                         <p>
                           DiGitA {version} · {t("Development pilot")} ·
-                          GPL-3.0-only
+                          MIT
                         </p>
                         <p>
                           {t(

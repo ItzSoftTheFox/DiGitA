@@ -3,7 +3,7 @@ name = "digita"
 version = "0.2.0"
 description = "DiGitA local Git workspace"
 edition = "2021"
-license = "GPL-3.0-only"
+license = "MIT"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

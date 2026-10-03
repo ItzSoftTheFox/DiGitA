@@ -77,5 +77,5 @@ and the published website in `docs/`. Stop development servers before cleaning.
 
 ![Local Git workspace](docs/images/workspace.png)
 
-DiGitA uses [GPL-3.0-only](LICENSE). See the [0.2.0 exit checklist](docs/checklist-0.2.0.md)
+DiGitA uses [MIT](LICENSE). See the [0.2.0 exit checklist](docs/checklist-0.2.0.md)
 for completed checks and remaining native/release gates.

@@ -68,10 +68,10 @@ AppImage remain deferred.
 References: [Arch makepkg](https://man.archlinux.org/man/makepkg.8),
 [Tauri distribution for Arch](https://v2.tauri.app/distribute/aur/).
 
-The 0.2.0 candidate is licensed under [GPL-3.0-only](../LICENSE). Its LICENSE
+The 0.2.0 candidate is licensed under [MIT](../LICENSE). Its LICENSE
 is installed in `/usr/share/licenses/digita/`. This tree prepares matching download
-and checksum files locally; publishing requires final native checks and matching
-source. See the [exit checklist](checklist-0.2.0.md).
+and checksum files locally; publishing requires final native checks. The matching
+source archive is provided as a convenience. See the [exit checklist](checklist-0.2.0.md).
 
 Isolated pacman install/upgrade/uninstall transactions passed on 2026-10-03, with
 dependency resolution and install scripts disabled. These tests do not validate

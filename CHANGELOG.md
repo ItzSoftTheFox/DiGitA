@@ -18,8 +18,8 @@ backend deployment is implied by this entry.
   Preferences v2 preserves valid legacy projects and notification intent.
 - About shows the app version, help, issue reporting and a small private-data-free
   diagnostic summary. Notifications remain available.
-- GPL-3.0-only selected; Arch package includes the license. Matching source must
-  accompany public binary distribution.
+- MIT selected; Arch package includes the license. The copyright and license
+  notice accompany binary distribution.
 
 Arch Linux x86_64 remains the target. Other platforms, account deletion,
 private rooms, multi-worker live state and automatic updates remain deferred.

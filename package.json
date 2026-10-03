@@ -36,5 +36,5 @@
     "vite": "^6.1.0",
     "vitest": "^4.1.11"
   },
-  "license": "GPL-3.0-only"
+  "license": "MIT"
 }

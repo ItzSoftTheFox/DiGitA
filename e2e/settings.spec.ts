@@ -121,7 +121,7 @@ test("About diagnostics exclude sensitive data and links stay fixed", async ({
   await page.getByRole("button", { name: "About", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("DiGitA 0.2.0");
-  await expect(dialog).toContainText("GPL-3.0-only");
+  await expect(dialog).toContainText("MIT");
   await expect(
     dialog.getByRole("link", { name: "Help and documentation" }),
   ).toHaveAttribute("href", "https://github.com/ItzSoftTheFox/DiGitA#readme");

@@ -3,14 +3,14 @@
 ## Phase 7 implementation complete — release gates remain open
 
 2026-10-03, shared DiGitA checkout. User authorized Phase 7, the 0.2.0 checklist,
-a dev desktop launch and GPL-3.0. Frontend and Backend workers edited their
+a dev desktop launch and MIT. Frontend and Backend workers edited their
 exclusive paths; Coordinator integrated E2E, root/native manifests, packaging,
 license, website outputs and records. All worker paths are released.
 
 Delivered: complete background music removal; preference schema v2 with strict
 valid-v1 migration preserving projects/notification intent; About version/license,
 help/issues and four-line allowlisted diagnostics; native fixed-URL launcher;
-0.2.0 Arch candidate, GPL text, changelog, local download/checksum and matching
+0.2.0 Arch candidate, MIT text, changelog, local download/checksum and matching
 application source snapshot. Old 0.1.0 download remains. Native browser launcher
 reports spawn/early failures and reaps long-running processes without killing
 browser descendants; late launcher errors cannot be reported.
@@ -42,7 +42,8 @@ Next: two actual desktop users, real app-data/keyring
 restart, unavailable keyring, system notifications and suspend/resume; clean Arch
 VM installation/runtime/upgrade/uninstall; Rust dependency audit and deployed
 security review. Do not claim full 0.2.0 exit or public-release readiness yet.
-Publish exact corresponding source with the binary only after authorized release.
+Include the MIT copyright/license notice with distributed copies. Publication
+remains subject to user authorization and the native release gates.
 No staging, commit, branch switch, publication or deployment occurred.
 
 ## Standing contracts and ownership
@@ -59,3 +60,8 @@ Workers do not spawn further agents or integrate Git. Frontend owns src/ and
 website sources; Backend owns server/native sources; Coordinator owns docs/root/
 E2E/packaging and generated outputs. Account deletion and other-OS releases remain
 deferred. Project contents, absolute paths and credentials remain local.
+
+License follow-up: user changed the choice to MIT on 2026-10-03. LICENSE, metadata,
+About, website and candidate binary/source/checksums now agree. Five relevant unit
+and three Settings browser tests passed; production/native/Arch build passed.
+No publication or deployment.

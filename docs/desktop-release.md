@@ -148,7 +148,8 @@ If deployment logs show IPv4 `certificate verify failed` followed by IPv6
 reached the endpoint. Deploy the CA-bundle fix rather than disabling TLS validation.
 See [libpq TLS verification](https://www.postgresql.org/docs/17/libpq-connect.html#LIBPQ-CONNECT-SSLROOTCERT).
 
-The 0.2.0 candidate uses GPL-3.0-only. Publish the exact corresponding source
-with any distributed binary; a link to an older main branch is insufficient.
+The 0.2.0 candidate uses MIT. Include the copyright and license
+notice with distributed copies. A matching application source archive is prepared
+as a convenience.
 Local builds and prepared Pages files do not establish deployment or release
 approval. See the [exit checklist](checklist-0.2.0.md).

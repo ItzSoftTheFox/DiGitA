@@ -48,8 +48,8 @@ See the [installation guide](../docs/arch-linux.md).
 Build and validate the new package, copy it and its checksum plus the exact application source archive/checksum into
 `docs/downloads/`,
 then rebuild the website. Preparing these files locally does not publish them.
-GPL-3.0-only distribution requires publishing the exact corresponding source;
-confirm this before pushing website downloads. Regular releases should use exact
+MIT distribution includes the copyright and license notice; the prepared
+source archive provides the matching application sources. Regular releases should use exact
 public GitHub Release asset links. Windows/macOS remain planned.
 
 ## Browser verification

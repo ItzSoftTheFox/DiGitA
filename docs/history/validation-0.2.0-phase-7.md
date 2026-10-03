@@ -21,7 +21,7 @@ and damaged data remain rejected/preserved. Storage names remain unchanged.
 Restoring projects never restores sharing consent or OS notification permission.
 
 Settings → Notifications replaces Audio and notifications. About shows version
-0.2.0, GPL-3.0-only, help/issues and diagnostics restricted to version, browser/
+0.2.0, MIT, help/issues and diagnostics restricted to version, browser/
 desktop runtime and English/Czech language. Account data, error objects, email,
 paths and tokens never enter the summary. Native help/issues accept only two
 enums mapped to fixed GitHub URLs; direct OS launchers use no shell/user URL.
@@ -29,16 +29,16 @@ The first 250ms detects startup errors; a dedicated thread reaps longer-running
 launchers without killing the user's browser. Late launcher failures cannot be
 reported. Browser links retain ordinary safe new-tab anchors.
 
-User selected GPL-3.0 on this turn; LICENSE contains the official GNU v3 text,
-with GPL-3.0-only metadata/About/package. The Arch package installs its text.
+User changed the license choice to MIT before publication; LICENSE contains its text,
+with MIT metadata/About/package. The Arch package installs its text.
 App/package/lock/Tauri/Cargo versions agree at 0.2.0; backend was already 0.2.0.
 The standalone Git library retains its independent 0.1.0 crate version.
 Changelog/guides and website remove current playback claims. The candidate and
 checksum are prepared locally under docs/downloads; the 0.1.0 package is preserved.
 Matching application source snapshot/checksum is also prepared locally and linked
 from the website. The snapshot excludes private/ignored files and binary downloads;
-locks/build scripts identify dependencies. Review third-party distribution duties
-and publish exact corresponding source before any public binary distribution.
+locks/build scripts identify dependencies. Third-party dependencies retain their own licenses. The package includes the
+MIT copyright/permission notice; the matching source snapshot is a convenience.
 
 ## Current evidence
 
@@ -71,7 +71,7 @@ installation, runtime loading, graphical launch, desktop-menu hooks or real root
 ownership. Log: artifacts/arch/package-validation.log (ignored local artifact).
 
 Final binary SHA-256:
-`227e9a8bb6fc42bd7e97bd9e40ef77a8701d9a90ae0aa6d19d918951e7e3aa4c`.
+`188974acf2a5ca886d996e89752209c0cb93b78d6e2e1956bbfe1d52ad183a32`.
 
 About at 800×600 and website at desktop/mobile widths were captured and inspected.
 Reduced-motion, Settings focus return, empty rooms/radar, stale repository data,
@@ -107,3 +107,10 @@ configured pilot API. This launch is not proof of two-client/OS acceptance.
 
 User confirmed the dev appearance looks OK on 2026-10-03. Record this as a
 manual visual pass only; no new keyring/two-client/package-runtime pass is implied.
+
+License follow-up: user requested MIT on 2026-10-03. License text, metadata, About,
+documentation and candidate binary/source artifacts were updated together.
+
+MIT follow-up checks: 5 About/diagnostic unit tests and 3 Settings browser
+scenarios passed; frontend/native release and Arch package rebuilt. The embedded
+LICENSE and package metadata were verified, and binary/source checksums refreshed.

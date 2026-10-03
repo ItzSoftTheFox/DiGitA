@@ -25,14 +25,14 @@ is not a real desktop pass; package transactions are not a clean Arch runtime te
 - [x] Finish About, safe diagnostics and fixed native help/issue links.
 - [x] Run frontend, backend SQLite/PostgreSQL, Git/native, build, Ruff and browser checks.
 - [x] Run npm/Python dependency and source secret checks; manually review false positives.
-- [x] Select GPL-3.0-only and include its text in the package.
+- [x] Select MIT and include its text in the package.
 - [x] Build Arch package and verify isolated install, 0.1.0 upgrade and uninstall transactions.
 - [x] Prepare matching local website download/checksum and changelog.
 - [ ] Run Rust dependency audit: cargo-audit is not installed.
 - [ ] Validate two real desktop clients, native restart/keyring, notifications and suspend/resume.
 - [ ] Validate clean Arch installation with runtime dependencies, graphical launch, upgrade and uninstall.
 - [ ] Verify deployed TLS/headers/proxy/limits, registration closure, MFA, backups and monitoring before expanding access.
-- [ ] Publish exact corresponding source and validate it matches the distributed binary before public distribution.
+- [x] Include the MIT copyright and license notice in the package; provide a matching source snapshot.
 
 User confirmed the dev appearance looks OK on 2026-10-03 (manual visual pass).
 
